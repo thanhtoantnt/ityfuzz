@@ -310,14 +310,6 @@ struct ConcatOptCtx {
 }
 
 impl ConcatOptCtx {
-    pub fn new_none() -> ConcatOptCtx {
-        ConcatOptCtx {
-            low: 0,
-            high: 0,
-            on_expr: None,
-        }
-    }
-
     pub fn merge(&mut self, other: ConcatOptCtx) -> bool {
         if other.on_expr != self.on_expr || other.on_expr.is_none() || self.on_expr.is_none() {
             return false;

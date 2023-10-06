@@ -2,7 +2,6 @@ use libafl::events::EventFirer;
 use libafl::executors::ExitKind;
 use libafl::feedbacks::Feedback;
 use libafl::Error;
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;

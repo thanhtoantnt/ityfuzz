@@ -7,7 +7,6 @@ use crate::state::{HasCaller, HasItyState};
 use bytes::Bytes;
 use libafl::corpus::{Corpus, Testcase};
 use libafl::inputs::Input;
-use libafl::schedulers::Scheduler;
 use libafl::state::{HasCorpus, HasMetadata, State};
 use primitive_types::U512;
 use serde::{Deserialize, Serialize};

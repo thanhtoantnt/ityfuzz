@@ -11,11 +11,11 @@ use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
 use crate::state::{HasCaller, HasCurrentInputIdx, HasItyState};
 
-use libafl::prelude::{Corpus, HasMetadata, Input};
+use libafl::prelude::{HasMetadata, Input};
 
 use libafl::state::{HasCorpus, State};
 
-use revm_interpreter::{Host, Interpreter};
+use revm_interpreter::Interpreter;
 use revm_primitives::{Bytecode, HashMap};
 
 use serde::{Deserialize, Serialize};
@@ -23,7 +23,7 @@ use std::borrow::Borrow;
 
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::ops::{Add, Mul, Not, Sub};
+use std::ops::Not;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -625,11 +625,6 @@ impl<I, VS> ConcolicHost<I, VS> {
         res
     }
 
-    fn string_to_bytes(s: &str) -> Vec<u8> {
-        // s: #x....
-        hex::decode(&s[2..]).unwrap()
-    }
-
     pub fn solve(&self) -> Vec<Solution> {
         let context = Context::new(&Config::default());
         // let input = (0..self.bytes)
@@ -662,15 +657,6 @@ impl<I, VS> ConcolicHost<I, VS> {
         }
         simplify(bytes)
     }
-}
-
-// TODO: test this
-fn str_to_bytes(s: &str) -> Vec<u8> {
-    let mut bytes = Vec::new();
-    for c in s.chars() {
-        bytes.push(c as u8);
-    }
-    bytes
 }
 
 impl<I, VS, S> Middleware<VS, I, S> for ConcolicHost<I, VS>
@@ -1275,7 +1261,6 @@ where
             }
             _ => {
                 panic!("Unsupported opcode: {:?}", *interp.instruction_pointer);
-                vec![]
             }
         };
         // println!("[concolic] adding bv to stack {:?}", bv);

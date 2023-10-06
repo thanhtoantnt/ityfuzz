@@ -17,7 +17,6 @@ use crate::state::{HasCaller, HasItyState};
 use crate::state_input::StagedVMState;
 use crypto::digest::Digest;
 use crypto::sha3::Sha3;
-use libafl::corpus::Corpus;
 use libafl::prelude::{HasCorpus, HasMetadata, Input};
 
 use libafl::state::{HasRand, State};
@@ -39,8 +38,6 @@ use revm_primitives::Bytecode;
 
 pub static mut BLACKLIST_ADDR: Option<HashSet<EVMAddress>> = None;
 pub static mut WHITELIST_ADDR: Option<HashSet<EVMAddress>> = None;
-
-const UNBOUND_THRESHOLD: usize = 30;
 
 pub struct OnChain<VS, I, S>
 where

@@ -83,7 +83,7 @@ impl
         // has balance increased?
         let exec_res = &ctx.fuzz_state.get_execution_result().new_state.state;
         if exec_res.flashloan_data.earned > exec_res.flashloan_data.owed {
-            unsafe {
+            {
                 EVMBugResult::new_simple(
                     "erc20".to_string(),
                     ERC20_BUG_IDX,

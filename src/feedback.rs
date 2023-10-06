@@ -18,7 +18,6 @@ use libafl::state::{HasClientPerfMonitor, HasCorpus, State};
 use libafl::Error;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
@@ -500,7 +499,7 @@ where
                 .vote(state.get_infant_state_state(), input.get_state_idx(), 3);
         }
 
-        unsafe {
+        {
             if self.vm.deref().borrow_mut().state_changed()
                 || state
                     .get_execution_result()

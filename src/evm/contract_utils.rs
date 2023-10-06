@@ -485,60 +485,8 @@ impl ContractLoader {
 
         Self { contracts, abis }
     }
-
-    // pub fn from_artifacts_and_proxy(
-    //     offchain_artifacts: &Vec<OffChainArtifact>,
-    //     proxy_deploy_codes: &Vec<String>,
-    // ) {
-    //     for deployed_code in proxy_deploy_codes {
-    //         deployed_code_cleaned = deployed_code.replace("0x", "");
-    //         let mut deployed_code_bytes = hex::decode(deployed_code_cleaned).expect("Failed to decode hex");
-    //
-    //         EVMExecutor::new(
-    //             FuzzHost::new(
-    //
-    //             )
-    //         )
-    //
-    //         // let build_job = OffChainArtifact::locate(
-    //         //     offchain_artifacts,
-    //         //     deployed_code_bytes,
-    //         // );
-    //         //
-    //         // if build_job.is_none() {
-    //         //     println!("Failed to find build job for {}", deployed_code);
-    //         //     continue;
-    //         // }
-    //         //
-    //         // let build_job = build_job.unwrap();
-    //         //
-    //         // abis.push(ABIInfo {
-    //         //     source: format!("{}:{}", slug.0, slug.1),
-    //         //     abi: abi.clone(),
-    //         // });
-    //         //
-    //         // contracts.push(ContractInfo {
-    //         //     name: format!("{}:{}", slug.0, slug.1),
-    //         //     code: more_info.deploy_bytecode.to_vec(),
-    //         //     abi: abi,
-    //         //     is_code_deployed: false,
-    //         //     constructor_args: hex::decode(contract_info.constructor.clone()).expect("failed to decode hex"),
-    //         //     deployed_address: contract_info.address,
-    //         //     source_map: None,
-    //         //     build_artifact: Some(BuildJobResult {
-    //         //         sources,
-    //         //         source_maps: more_info.source_map,
-    //         //         bytecodes: more_info.deploy_bytecode,
-    //         //         abi: more_info.abi.clone(),
-    //         //     })
-    //         // })
-    //
-    //
-    //     }
-    // }
 }
 
-type ContractSourceMap = HashMap<usize, SourceMapLocation>;
 type ContractsSourceMapInfo = HashMap<String, HashMap<usize, SourceMapLocation>>;
 
 pub fn parse_combined_json(json: String) -> ContractsSourceMapInfo {

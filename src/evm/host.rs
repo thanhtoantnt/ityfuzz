@@ -134,8 +134,6 @@ where
     pub current_typed_bug: Vec<(String, (EVMAddress, usize))>,
     pub call_count: u32,
 
-    #[cfg(feature = "print_logs")]
-    pub logs: HashSet<u64>,
     // set_code data
     pub setcode_data: HashMap<EVMAddress, Bytecode>,
     // selftdestruct
@@ -218,8 +216,6 @@ where
             access_pattern: self.access_pattern.clone(),
             bug_hit: false,
             call_count: 0,
-            #[cfg(feature = "print_logs")]
-            logs: Default::default(),
             setcode_data: self.setcode_data.clone(),
             current_self_destructs: self.current_self_destructs.clone(),
             current_arbitrary_calls: self.current_arbitrary_calls.clone(),
@@ -282,8 +278,6 @@ where
             access_pattern: Rc::new(RefCell::new(AccessPattern::new())),
             bug_hit: false,
             call_count: 0,
-            #[cfg(feature = "print_logs")]
-            logs: Default::default(),
             setcode_data: HashMap::new(),
             current_self_destructs: Default::default(),
             current_arbitrary_calls: Default::default(),
@@ -527,14 +521,12 @@ where
         state: &mut S,
     ) -> (InstructionResult, Gas, Bytes) {
         macro_rules! push_interp {
-            () => {
-                unsafe {
-                    self.leak_ctx = vec![SinglePostExecution::from_interp(
-                        interp,
-                        (out_offset, out_len),
-                    )];
-                }
-            };
+            () => {{
+                self.leak_ctx = vec![SinglePostExecution::from_interp(
+                    interp,
+                    (out_offset, out_len),
+                )];
+            }};
         }
         self.call_count += 1;
         if self.call_count >= unsafe { CALL_UNTIL } {
@@ -694,14 +686,12 @@ where
         // if there is code, then call the code
         let res = self.call_forbid_control_leak(input, state);
         match res.0 {
-            ControlLeak | InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _) => unsafe {
-                unsafe {
-                    self.leak_ctx.push(SinglePostExecution::from_interp(
-                        interp,
-                        (out_offset, out_len),
-                    ));
-                }
-            },
+            ControlLeak | InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _) => {
+                self.leak_ctx.push(SinglePostExecution::from_interp(
+                    interp,
+                    (out_offset, out_len),
+                ));
+            }
             _ => {}
         }
         res
@@ -1003,7 +993,7 @@ where
                         0xf4 | 0xfa => 5,
                         _ => unreachable!(),
                     };
-                    unsafe {
+                    {
                         RET_OFFSET = as_u64(fast_peek!(offset_of_ret_size - 1)) as usize;
                         // println!("RET_OFFSET: {}", RET_OFFSET);
                         RET_SIZE = as_u64(fast_peek!(offset_of_ret_size)) as usize;
@@ -1133,22 +1123,6 @@ where
                 ));
             }
         }
-
-        #[cfg(feature = "print_logs")]
-        {
-            let mut hasher = DefaultHasher::new();
-            _data.to_vec().hash(&mut hasher);
-            let h = hasher.finish();
-            if self.logs.contains(&h) {
-                return;
-            }
-            self.logs.insert(h);
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("Time went backwards");
-            let timestamp = now.as_nanos();
-            println!("log@{} {:?}", timestamp, hex::encode(_data));
-        }
     }
 
     fn selfdestruct(
@@ -1165,7 +1139,7 @@ where
         inputs: &mut CreateInputs,
         state: &mut S,
     ) -> (InstructionResult, Option<EVMAddress>, Gas, Bytes) {
-        unsafe {
+        {
             if unsafe { CONCRETE_CREATE || IN_DEPLOY } {
                 // todo: use nonce + hash instead
                 let r_addr = generate_random_address(state);

@@ -5,7 +5,6 @@ pub mod function;
 pub mod selfdestruct;
 pub mod state_comp;
 pub mod typed_bug;
-pub mod v2_pair;
 
 pub static ERC20_BUG_IDX: u64 = 0;
 pub static FUNCTION_BUG_IDX: u64 = 1;

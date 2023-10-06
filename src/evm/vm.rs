@@ -1,6 +1,5 @@
 /// EVM executor implementation
 use itertools::Itertools;
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
@@ -168,7 +167,7 @@ impl SinglePostExecution {
 
         let mut stack = Stack::new();
         for v in &self.stack.data {
-            stack.push(v.clone());
+            let _ = stack.push(v.clone());
         }
 
         Interpreter {
@@ -522,7 +521,7 @@ where
             // If there is a post execution context, then we need to create the interpreter from
             // the post execution context
             repeats = 1;
-            unsafe {
+            {
                 // setup the pc, memory, and stack as the post execution context
                 let mut interp = post_exec_ctx.get_interpreter(bytecode);
                 // set return buffer as the input
@@ -597,56 +596,6 @@ where
         result
     }
 
-    /// Conduct a fast call that does not write to the feedback
-    fn fast_call(
-        &mut self,
-        address: EVMAddress,
-        data: Bytes,
-        vm_state: &VS,
-        state: &mut S,
-        value: EVMU256,
-        from: EVMAddress,
-    ) -> IntermediateExecutionResult {
-        unsafe {
-            IS_FAST_CALL = true;
-        }
-        // println!("fast call: {:?} {:?} with {}", address, hex::encode(data.to_vec()), value);
-        let call = Contract::new_with_context_analyzed(
-            data,
-            self.host
-                .code
-                .get(&address)
-                .expect(&*format!("no code {:?}", address))
-                .clone(),
-            &CallContext {
-                address,
-                caller: from,
-                code_address: address,
-                apparent_value: value,
-                scheme: CallScheme::Call,
-            },
-        );
-        unsafe {
-            self.host.evmstate = vm_state
-                .as_any()
-                .downcast_ref_unchecked::<EVMState>()
-                .clone();
-        }
-        let mut interp = Interpreter::new_with_memory_limit(call, 1e10 as u64, false, MEM_LIMIT);
-        let ret = self.host.run_inspect(&mut interp, state);
-        unsafe {
-            IS_FAST_CALL = false;
-        }
-        IntermediateExecutionResult {
-            output: interp.return_value(),
-            new_state: self.host.evmstate.clone(),
-            pc: interp.program_counter(),
-            ret,
-            stack: Default::default(),
-            memory: Default::default(),
-        }
-    }
-
     /// Execute a transaction, wrapper of [`EVMExecutor::execute_from_pc`]
     fn execute_abi(
         &mut self,
@@ -662,7 +611,7 @@ where
                 .clone()
         };
 
-        let mut r = None;
+        let r;
         let mut is_step = input.is_step();
         let mut data = Bytes::from(input.to_bytes());
         // use direct data (mostly used for debugging) if there is no data
@@ -679,7 +628,7 @@ where
                 let mut local_res = None;
                 for mut pe in post_exec.pes {
                     // we need push the output of CALL instruction
-                    pe.stack.push(EVMU256::from(1));
+                    let _ = pe.stack.push(EVMU256::from(1));
                     let res = self.execute_from_pc(
                         &pe.get_call_ctx(),
                         &vm_state,
@@ -734,7 +683,7 @@ where
         }
         let mut r = r.unwrap();
         match r.ret {
-            ControlLeak | InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _) => unsafe {
+            ControlLeak | InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _) => {
                 if r.new_state.post_execution.len() + 1 > MAX_POST_EXECUTION {
                     return ExecutionResult {
                         output: r.output.to_vec(),
@@ -769,7 +718,7 @@ where
                         _ => unreachable!(),
                     },
                 });
-            },
+            }
             _ => {}
         }
 

@@ -12,7 +12,6 @@ use crate::evm::onchain::endpoints::PriceOracle;
 use crate::evm::host::FuzzHost;
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
-use crate::oracle::Oracle;
 use crate::state::{HasCaller, HasItyState};
 use bytes::Bytes;
 use libafl::corpus::{Corpus, Testcase};
@@ -36,11 +35,6 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::time::Duration;
 
-macro_rules! scale {
-    () => {
-        EVMU512::from(1_000_000)
-    };
-}
 pub struct Flashloan<VS, I, S>
 where
     S: State + HasCaller<EVMAddress> + Debug + Clone + 'static,
@@ -332,14 +326,14 @@ where
     ) {
         macro_rules! earned {
             ($amount:expr) => {
-                host.evmstate.flashloan_data.earned += $amount;
+                host.evmstate.flashloan_data.earned += $amount
             };
             () => {};
         }
 
         macro_rules! owed {
             ($amount:expr) => {
-                host.evmstate.flashloan_data.owed += $amount;
+                host.evmstate.flashloan_data.owed += $amount
             };
             () => {};
         }

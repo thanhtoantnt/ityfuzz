@@ -72,6 +72,7 @@ pub type EVMFuzzExecutor<OT> = FuzzExecutor<
 >;
 
 /// convert array of 20x u8 to H160
+#[allow(non_snake_case)]
 pub fn convert_H160(v: [u8; 20]) -> H160 {
     return v.into();
 }

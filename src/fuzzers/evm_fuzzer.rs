@@ -16,7 +16,7 @@ use crate::{
 use glob::glob;
 use itertools::Itertools;
 use libafl::feedbacks::Feedback;
-use libafl::prelude::{HasMetadata, ShMemProvider};
+use libafl::prelude::HasMetadata;
 use libafl::prelude::{QueueScheduler, SimpleEventManager};
 use libafl::stages::StdMutationalStage;
 use libafl::{
@@ -65,16 +65,6 @@ use crate::evm::srcmap::parser::BASE_PATH;
 use crate::fuzzer::{REPLAY, RUN_FOREVER};
 use crate::input::ConciseSerde;
 use crate::oracle::BugMetadata;
-
-struct ABIConfig {
-    abi: String,
-    function: [u8; 4],
-}
-
-struct ContractInfo {
-    name: String,
-    abi: Vec<ABIConfig>,
-}
 
 pub fn evm_fuzzer(
     config: Config<

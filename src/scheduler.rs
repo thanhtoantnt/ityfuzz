@@ -233,7 +233,7 @@ where
 
                 // Remove inputs (or VMState) from metadata and corpus
                 to_remove.iter().for_each(|x| {
-                    self.on_remove(state, *x, &None);
+                    let _ = self.on_remove(state, *x, &None);
                     #[cfg(feature = "full_trace")]
                     {
                         state

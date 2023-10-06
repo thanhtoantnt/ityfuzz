@@ -155,13 +155,7 @@ where
                     };
                     input.set_contract_and_abi(target, abi);
                 }
-                Constraint::NoLiquidation => {
-                    #[cfg(feature = "flashloan_v2")]
-                    {
-                        input.set_liquidation_percent(0);
-                    }
-                }
-                _ => {}
+                Constraint::NoLiquidation => {}
             }
         }
     }

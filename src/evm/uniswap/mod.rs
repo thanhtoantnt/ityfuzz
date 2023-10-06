@@ -6,7 +6,6 @@ use crypto::digest::Digest;
 use crypto::sha3::Sha3;
 
 use permutator::CartesianProductIterator;
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 

@@ -1,5 +1,4 @@
 /// Mutation utilities for the EVM
-use crate::input::VMInputT;
 use libafl::inputs::{HasBytesVec, Input};
 use libafl::mutators::MutationResult;
 use libafl::prelude::{

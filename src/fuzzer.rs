@@ -573,24 +573,6 @@ where
                 }
 
                 return Ok((res, None));
-                // Not interesting
-                self.feedback.discard_metadata(state, &input)?;
-
-                // The input is a solution, add it to the respective corpus
-                let mut testcase = Testcase::new(input.clone());
-                self.objective.append_metadata(state, &mut testcase)?;
-                state.solutions_mut().add(testcase)?;
-
-                if send_events {
-                    manager.fire(
-                        state,
-                        Event::Objective {
-                            objective_size: state.solutions().count(),
-                        },
-                    )?;
-                }
-
-                Ok((res, None))
             }
         };
         unsafe {
