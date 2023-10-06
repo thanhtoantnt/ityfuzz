@@ -1,5 +1,4 @@
 pub mod abi;
-// pub mod blaz;
 pub mod bytecode_analyzer;
 pub mod bytecode_iterator;
 pub mod config;
@@ -10,7 +9,7 @@ pub mod host;
 pub mod input;
 pub mod middlewares;
 pub mod mutator;
-pub mod onchain;
+// pub mod onchain;
 pub mod oracle;
 pub mod oracles;
 pub mod srcmap;

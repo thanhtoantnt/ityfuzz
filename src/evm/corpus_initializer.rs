@@ -28,7 +28,6 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
 use hex;
-use itertools::Itertools;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -41,7 +40,6 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
-use crate::evm::onchain::abi_decompiler::fetch_abi_heimdall;
 use crate::evm::types::EVMExecutionResult;
 
 pub struct EVMCorpusInitializer<'a> {
@@ -212,35 +210,10 @@ impl<'a> EVMCorpusInitializer<'a> {
                 println!("Contract {} has no abi", contract.name);
                 let contract_code = hex::encode(contract.code.clone());
                 let sigs = extract_sig_from_contract(&contract_code);
-                let mut unknown_sigs: usize = 0;
                 for sig in &sigs {
                     if let Some(abi) = self.state.metadata().get::<ABIMap>().unwrap().get(sig) {
                         contract.abi.push(abi.clone());
-                    } else {
-                        unknown_sigs += 1;
                     }
-                }
-
-                if unknown_sigs >= sigs.len() / 30 {
-                    println!("Too many unknown function signature for {:?}, we are going to decompile this contract using Heimdall", contract.name);
-                    let abis = fetch_abi_heimdall(contract_code)
-                        .iter()
-                        .map(|abi| {
-                            if let Some(known_abi) = self
-                                .state
-                                .metadata()
-                                .get::<ABIMap>()
-                                .unwrap()
-                                .get(&abi.function)
-                            {
-                                known_abi
-                            } else {
-                                abi
-                            }
-                        })
-                        .cloned()
-                        .collect_vec();
-                    contract.abi = abis;
                 }
             }
 

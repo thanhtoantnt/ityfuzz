@@ -56,7 +56,7 @@ pub struct ContractLoader {
     pub abis: Vec<ABIInfo>,
 }
 
-pub fn set_hash(name: &str, out: &mut [u8]) {
+fn set_hash(name: &str, out: &mut [u8]) {
     let mut hasher = Sha3::keccak256();
     hasher.input_str(name);
     hasher.result(out)
@@ -94,7 +94,7 @@ impl ContractLoader {
         }
     }
 
-    pub fn parse_abi_str(data: &String) -> Vec<ABIConfig> {
+    fn parse_abi_str(data: &String) -> Vec<ABIConfig> {
         let json: Vec<Value> = serde_json::from_str(&data).expect("failed to parse abis file");
         json.iter()
             .flat_map(|abi| {
@@ -171,7 +171,7 @@ impl ContractLoader {
             .collect()
     }
 
-    pub fn from_prefix(
+    fn from_prefix(
         prefix: &str,
         state: &mut EVMFuzzState,
         source_map_info: Option<ContractsSourceMapInfo>,
@@ -293,13 +293,6 @@ impl ContractLoader {
         };
     }
 
-    // This function loads constructs Contract infos from path p
-    // The organization of directory p should be
-    // p
-    // |- contract1.abi
-    // |- contract1.bin
-    // |- contract2.abi
-    // |- contract2.bin
     pub fn from_glob(
         p: &str,
         state: &mut EVMFuzzState,
@@ -378,7 +371,7 @@ impl ContractLoader {
 
 type ContractsSourceMapInfo = HashMap<String, HashMap<usize, SourceMapLocation>>;
 
-pub fn parse_combined_json(json: String) -> ContractsSourceMapInfo {
+fn parse_combined_json(json: String) -> ContractsSourceMapInfo {
     let map_json = serde_json::from_str::<serde_json::Value>(&json).unwrap();
 
     let contracts = map_json["contracts"]

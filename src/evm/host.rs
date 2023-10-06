@@ -5,7 +5,6 @@ use crate::evm::middlewares::middleware::{
 use crate::evm::mutator::AccessPattern;
 
 use bytes::Bytes;
-use itertools::Itertools;
 use libafl::prelude::{HasCorpus, HasMetadata, HasRand, Scheduler};
 use libafl::state::State;
 
@@ -41,8 +40,6 @@ use crate::input::VMInputT;
 use crate::evm::abi::{get_abi_type_boxed, register_abi_instance};
 use crate::evm::contract_utils::extract_sig_from_contract;
 use crate::evm::corpus_initializer::ABIMap;
-
-use crate::evm::onchain::abi_decompiler::fetch_abi_heimdall;
 
 use crate::state::{HasCaller, HasHashToAddress, HasItyState};
 use crate::state_input::StagedVMState;
@@ -1134,37 +1131,11 @@ where
                         // now we build & insert abi
                         let contract_code_str = hex::encode(runtime_code.clone());
                         let sigs = extract_sig_from_contract(&contract_code_str);
-                        let mut unknown_sigs: usize = 0;
                         let mut parsed_abi = vec![];
                         for sig in &sigs {
                             if let Some(abi) = state.metadata().get::<ABIMap>().unwrap().get(sig) {
                                 parsed_abi.push(abi.clone());
-                            } else {
-                                unknown_sigs += 1;
                             }
-                        }
-
-                        if unknown_sigs >= sigs.len() / 30 {
-                            println!("Too many unknown function signature for newly created contract, we are going to decompile this contract using Heimdall");
-                            let abis = fetch_abi_heimdall(contract_code_str)
-                                .iter()
-                                .map(|abi| {
-                                    if let Some(known_abi) =
-                                        state.metadata().get::<ABIMap>().unwrap().get(&abi.function)
-                                    {
-                                        known_abi
-                                    } else {
-                                        abi
-                                    }
-                                })
-                                .cloned()
-                                .collect_vec();
-                            parsed_abi = abis;
-                        }
-                        // notify flashloan and blacklisting flashloan addresses
-                        #[cfg(feature = "flashloan_v2")]
-                        {
-                            handle_contract_insertion!(state, self, r_addr, parsed_abi);
                         }
 
                         parsed_abi
@@ -1196,10 +1167,6 @@ where
 
                                     env: Default::default(),
                                     access_pattern: Rc::new(RefCell::new(AccessPattern::new())),
-                                    #[cfg(feature = "flashloan_v2")]
-                                    liquidation_percent: 0,
-                                    #[cfg(feature = "flashloan_v2")]
-                                    input_type: EVMInputTy::ABI,
                                     direct_data: Default::default(),
                                     randomness: vec![0],
                                     repeat: 1,
