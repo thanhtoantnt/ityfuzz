@@ -20,8 +20,4 @@ pub mod oracle;
 pub mod scheduler;
 pub mod state;
 pub mod state_input;
-pub mod telemetry;
 pub mod tracer;
-
-#[cfg(feature = "sui_support")]
-pub mod r#move;
