@@ -1,8 +1,7 @@
-/// Configuration for the EVM fuzzer
 use crate::evm::contract_utils::ContractLoader;
 use crate::evm::onchain::endpoints::{OnChainConfig, PriceOracle};
 
-use crate::oracle::{Oracle, Producer};
+use crate::oracle::Oracle;
 use std::cell::RefCell;
 use std::collections::HashSet;
 
@@ -45,15 +44,14 @@ impl FuzzerTypes {
     }
 }
 
-pub struct Config<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, CI> {
+pub struct Config<VS, Addr, Code, By, SlotTy, Out, I, S, CI> {
     pub onchain: Option<OnChainConfig>,
     pub onchain_storage_fetching: Option<StorageFetchingMode>,
     pub concolic: bool,
     pub concolic_caller: bool,
     pub fuzzer_type: FuzzerTypes,
     pub contract_loader: ContractLoader,
-    pub oracle: Vec<Rc<RefCell<dyn Oracle<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, CI>>>>,
-    pub producers: Vec<Rc<RefCell<dyn Producer<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, CI>>>>,
+    pub oracle: Vec<Rc<RefCell<dyn Oracle<VS, Addr, Code, By, SlotTy, Out, I, S, CI>>>>,
     pub price_oracle: Box<dyn PriceOracle>,
     pub replay_file: Option<String>,
     pub selfdestruct_oracle: bool,

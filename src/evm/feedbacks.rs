@@ -23,7 +23,7 @@ use libafl::state::HasClientPerfMonitor;
 pub struct Sha3WrappedFeedback<I, S, VS, F>
 where
     S: State + HasCaller<EVMAddress> + Debug + Clone + HasClientPerfMonitor + 'static,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT,
     VS: VMStateT,
     F: Feedback<I, S>,
 {
@@ -38,7 +38,7 @@ where
     S: State
         + HasRand
         + HasCorpus<I>
-        + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
+        + HasItyState<EVMAddress, VS, ConciseEVMInput>
         + HasMetadata
         + HasCaller<EVMAddress>
         + HasCurrentInputIdx
@@ -47,7 +47,7 @@ where
         + Clone
         + Debug
         + 'static,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
     VS: VMStateT + 'static,
     F: Feedback<I, S>,
 {
@@ -95,7 +95,7 @@ where
 impl<I, S, VS, F> Sha3WrappedFeedback<I, S, VS, F>
 where
     S: State + HasCaller<EVMAddress> + Debug + Clone + HasClientPerfMonitor + 'static,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT,
     VS: VMStateT,
     F: Feedback<I, S>,
 {
@@ -117,7 +117,7 @@ where
 impl<I, S, VS, F> Named for Sha3WrappedFeedback<I, S, VS, F>
 where
     S: State + HasCaller<EVMAddress> + Debug + Clone + HasClientPerfMonitor + 'static,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT,
     VS: VMStateT,
     F: Feedback<I, S>,
 {
@@ -129,7 +129,7 @@ where
 impl<I, S, VS, F> Debug for Sha3WrappedFeedback<I, S, VS, F>
 where
     S: State + HasCaller<EVMAddress> + Debug + Clone + HasClientPerfMonitor + 'static,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT,
     VS: VMStateT,
     F: Feedback<I, S>,
 {

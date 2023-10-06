@@ -21,15 +21,13 @@ use revm_primitives::{Bytecode, B160, U256};
 pub type EVMAddress = B160;
 pub type EVMU256 = U256;
 pub type EVMU512 = U512;
-pub type EVMFuzzState =
-    FuzzState<EVMInput, EVMState, EVMAddress, EVMAddress, Vec<u8>, ConciseEVMInput>;
+pub type EVMFuzzState = FuzzState<EVMInput, EVMState, EVMAddress, Vec<u8>, ConciseEVMInput>;
 pub type EVMOracleCtx<'a> = OracleCtx<
     'a,
     EVMState,
     EVMAddress,
     Bytecode,
     Bytes,
-    EVMAddress,
     EVMU256,
     Vec<u8>,
     EVMInput,
@@ -42,18 +40,17 @@ pub type EVMFuzzMutator<'a> = FuzzMutator<
     EVMAddress,
     EVMAddress,
     SortedDroppingScheduler<
-        StagedVMState<EVMAddress, EVMAddress, EVMState, ConciseEVMInput>,
-        InfantStateState<EVMAddress, EVMAddress, EVMState, ConciseEVMInput>,
+        StagedVMState<EVMAddress, EVMState, ConciseEVMInput>,
+        InfantStateState<EVMAddress, EVMState, ConciseEVMInput>,
     >,
     ConciseEVMInput,
 >;
 
-pub type EVMInfantStateState = InfantStateState<EVMAddress, EVMAddress, EVMState, ConciseEVMInput>;
+pub type EVMInfantStateState = InfantStateState<EVMAddress, EVMState, ConciseEVMInput>;
 
-pub type EVMStagedVMState = StagedVMState<EVMAddress, EVMAddress, EVMState, ConciseEVMInput>;
+pub type EVMStagedVMState = StagedVMState<EVMAddress, EVMState, ConciseEVMInput>;
 
-pub type EVMExecutionResult =
-    ExecutionResult<EVMAddress, EVMAddress, EVMState, Vec<u8>, ConciseEVMInput>;
+pub type EVMExecutionResult = ExecutionResult<EVMAddress, EVMState, Vec<u8>, ConciseEVMInput>;
 
 pub type ProjectSourceMapTy = HashMap<EVMAddress, Option<HashMap<usize, SourceMapLocation>>>;
 
@@ -62,7 +59,6 @@ pub type EVMFuzzExecutor<OT> = FuzzExecutor<
     EVMAddress,
     Bytecode,
     Bytes,
-    EVMAddress,
     EVMU256,
     Vec<u8>,
     EVMInput,
@@ -125,12 +121,4 @@ pub fn bytes_to_u64(v: &[u8]) -> u64 {
     let mut data: [u8; 8] = [0; 8];
     data.copy_from_slice(v);
     u64::from_be_bytes(data)
-}
-
-mod tests {
-
-    #[test]
-    fn test_as_u64() {
-        assert_eq!(as_u64(EVMU256::from(100)), 100)
-    }
 }

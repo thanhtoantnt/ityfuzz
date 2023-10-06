@@ -61,10 +61,10 @@ pub enum MiddlewareOp {
 
 pub fn add_corpus<VS, I, S>(host: &FuzzHost<VS, I, S>, state: &mut S, input: &EVMInput)
 where
-    I: Input + VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
+    I: Input + VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
     S: State
         + HasCorpus<I>
-        + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
+        + HasItyState<EVMAddress, VS, ConciseEVMInput>
         + HasMetadata
         + HasCaller<EVMAddress>
         + Clone
@@ -83,7 +83,7 @@ where
 pub trait Middleware<VS, I, S>: Debug
 where
     S: State + HasCaller<EVMAddress> + Clone + Debug,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT,
     VS: VMStateT,
 {
     unsafe fn on_step(

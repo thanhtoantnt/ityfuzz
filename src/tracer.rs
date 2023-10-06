@@ -16,13 +16,13 @@ use serde::{Deserialize, Serialize};
 /// Represent a trace of transactions with starting VMState ID (from_idx).
 /// If VMState ID is None, it means that the trace is from the initial state.
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct TxnTrace<Loc, Addr, CI> {
-    pub transactions: Vec<CI>,   // Transactions
-    pub from_idx: Option<usize>, // Starting VMState ID
-    pub phantom: std::marker::PhantomData<(Loc, Addr)>,
+pub struct TxnTrace<Addr, CI> {
+    pub transactions: Vec<CI>,
+    pub from_idx: Option<usize>,
+    pub phantom: std::marker::PhantomData<Addr>,
 }
 
-impl<Loc, Addr, CI> TxnTrace<Loc, Addr, CI>
+impl<Addr, CI> TxnTrace<Addr, CI>
 where
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
@@ -43,10 +43,9 @@ where
     /// Convert the trace to a human-readable string
     pub fn to_string<VS, S>(&self, state: &mut S) -> String
     where
-        S: HasInfantStateState<Loc, Addr, VS, CI>,
+        S: HasInfantStateState<Addr, VS, CI>,
         VS: VMStateT,
         Addr: Debug + Serialize + DeserializeOwned + Clone,
-        Loc: Debug + Serialize + DeserializeOwned + Clone,
     {
         // If from_idx is None, it means that the trace is from the initial state
         if self.from_idx.is_none() {
@@ -77,10 +76,9 @@ where
     /// Serialize the trace so that it can be replayed by using --replay-file option
     pub fn to_file_str<VS, S>(&self, state: &mut S) -> String
     where
-        S: HasInfantStateState<Loc, Addr, VS, CI>,
+        S: HasInfantStateState<Addr, VS, CI>,
         VS: VMStateT,
         Addr: Debug + Serialize + DeserializeOwned + Clone,
-        Loc: Debug + Serialize + DeserializeOwned + Clone,
     {
         // If from_idx is None, it means that the trace is from the initial state
         if self.from_idx.is_none() {
@@ -115,7 +113,7 @@ where
         s
     }
 }
-impl<Loc, Addr, CI> Default for TxnTrace<Loc, Addr, CI>
+impl<Addr, CI> Default for TxnTrace<Addr, CI>
 where
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {

@@ -91,7 +91,7 @@ impl AccessPattern {
 pub struct FuzzMutator<'a, VS, Loc, Addr, SC, CI>
 where
     VS: Default + VMStateT,
-    SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>,
+    SC: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
     Loc: Serialize + DeserializeOwned + Debug + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
@@ -105,7 +105,7 @@ where
 impl<'a, VS, Loc, Addr, SC, CI> FuzzMutator<'a, VS, Loc, Addr, SC, CI>
 where
     VS: Default + VMStateT,
-    SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>,
+    SC: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
     Loc: Serialize + DeserializeOwned + Debug + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
@@ -120,13 +120,8 @@ where
 
     fn ensures_constraint<I, S>(input: &mut I, state: &mut S, constraints: Vec<Constraint>)
     where
-        I: VMInputT<VS, Loc, Addr, CI> + Input + EVMInputT,
-        S: State
-            + HasRand
-            + HasMaxSize
-            + HasItyState<Loc, Addr, VS, CI>
-            + HasCaller<Addr>
-            + HasMetadata,
+        I: VMInputT<VS, Addr, CI> + Input + EVMInputT,
+        S: State + HasRand + HasMaxSize + HasItyState<Addr, VS, CI> + HasCaller<Addr> + HasMetadata,
     {
         for constraint in constraints {
             match constraint {
@@ -163,14 +158,9 @@ where
 
 impl<'a, VS, Loc, Addr, I, S, SC, CI> Mutator<I, S> for FuzzMutator<'a, VS, Loc, Addr, SC, CI>
 where
-    I: VMInputT<VS, Loc, Addr, CI> + Input + EVMInputT,
-    S: State
-        + HasRand
-        + HasMaxSize
-        + HasItyState<Loc, Addr, VS, CI>
-        + HasCaller<Addr>
-        + HasMetadata,
-    SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>,
+    I: VMInputT<VS, Addr, CI> + Input + EVMInputT,
+    S: State + HasRand + HasMaxSize + HasItyState<Addr, VS, CI> + HasCaller<Addr> + HasMetadata,
+    SC: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>,
     VS: Default + VMStateT + EVMStateT,
     Addr: PartialEq + Debug + Serialize + DeserializeOwned + Clone,
     Loc: Serialize + DeserializeOwned + Debug + Clone,
@@ -208,52 +198,11 @@ where
             // we should not mutate the VM state, but only mutate the bytes
             if input.is_step() {
                 let res = match state.rand_mut().below(100) {
-                    #[cfg(feature = "flashloan_v2")]
-                    0..=5 => {
-                        let prev_percent = input.get_liquidation_percent();
-                        input.set_liquidation_percent(if state.rand_mut().below(100) < 80 {
-                            10
-                        } else {
-                            0
-                        } as u8);
-                        if prev_percent != input.get_liquidation_percent() {
-                            MutationResult::Mutated
-                        } else {
-                            MutationResult::Skipped
-                        }
-                    }
                     _ => input.mutate(state),
                 };
 
                 input.set_txn_value(EVMU256::ZERO);
                 return res;
-            }
-
-            // if the input is to borrow token, we should mutate the randomness
-            // (use to select the paths to buy token), VM state, and bytes
-            #[cfg(feature = "flashloan_v2")]
-            if input.get_input_type() == Borrow {
-                let rand_u8 = state.rand_mut().below(255) as u8;
-                return match state.rand_mut().below(3) {
-                    0 => {
-                        // mutate the randomness
-                        input.set_randomness(vec![rand_u8; 1]);
-                        MutationResult::Mutated
-                    }
-                    1 => {
-                        // mutate the VM state
-                        let old_idx = input.get_state_idx();
-                        let (idx, new_state) =
-                            state.get_infant_state(self.infant_scheduler).unwrap();
-                        if idx == old_idx {
-                            return MutationResult::Skipped;
-                        }
-                        input.set_staged_state(new_state, idx);
-                        MutationResult::Mutated
-                    }
-                    // mutate the bytes
-                    _ => input.mutate(state),
-                };
             }
 
             // potentially set the input to be a step input  (resume execution from a control leak)
@@ -292,20 +241,6 @@ where
                     Self::ensures_constraint(input, state, new_state.state.get_constraints());
                     input.set_staged_state(new_state, idx);
                     MutationResult::Mutated
-                }
-                #[cfg(feature = "flashloan_v2")]
-                6..=10 => {
-                    let prev_percent = input.get_liquidation_percent();
-                    input.set_liquidation_percent(if state.rand_mut().below(100) < 80 {
-                        10
-                    } else {
-                        0
-                    } as u8);
-                    if prev_percent != input.get_liquidation_percent() {
-                        MutationResult::Mutated
-                    } else {
-                        MutationResult::Skipped
-                    }
                 }
                 11 => {
                     let rand_u8 = state.rand_mut().below(255) as u8;

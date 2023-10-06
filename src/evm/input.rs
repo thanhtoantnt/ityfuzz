@@ -107,7 +107,7 @@ pub struct EVMInput {
 
     /// Staged VM state
     #[serde(skip_deserializing)]
-    pub sstate: StagedVMState<EVMAddress, EVMAddress, EVMState, ConciseEVMInput>,
+    pub sstate: StagedVMState<EVMAddress, EVMState, ConciseEVMInput>,
 
     /// Staged VM state index in the corpus
     #[serde(skip_deserializing)]
@@ -188,10 +188,10 @@ pub struct ConciseEVMInput {
 impl ConciseEVMInput {
     pub fn from_input<I, Out>(
         input: &I,
-        execution_result: &ExecutionResult<EVMAddress, EVMAddress, EVMState, Out, ConciseEVMInput>,
+        execution_result: &ExecutionResult<EVMAddress, EVMState, Out, ConciseEVMInput>,
     ) -> Self
     where
-        I: VMInputT<EVMState, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT,
+        I: VMInputT<EVMState, EVMAddress, ConciseEVMInput> + EVMInputT,
         Out: Default,
     {
         Self {
@@ -639,13 +639,13 @@ impl ConciseSerde for ConciseEVMInput {
     }
 }
 
-impl VMInputT<EVMState, EVMAddress, EVMAddress, ConciseEVMInput> for EVMInput {
+impl VMInputT<EVMState, EVMAddress, ConciseEVMInput> for EVMInput {
     fn mutate<S>(&mut self, state: &mut S) -> MutationResult
     where
         S: State
             + HasRand
             + HasMaxSize
-            + HasItyState<EVMAddress, EVMAddress, EVMState, ConciseEVMInput>
+            + HasItyState<EVMAddress, EVMState, ConciseEVMInput>
             + HasCaller<EVMAddress>
             + HasMetadata,
     {
@@ -760,7 +760,7 @@ impl VMInputT<EVMState, EVMAddress, EVMAddress, ConciseEVMInput> for EVMInput {
 
     fn get_concise<Out: Default>(
         &self,
-        exec_res: &ExecutionResult<EVMAddress, EVMAddress, EVMState, Out, ConciseEVMInput>,
+        exec_res: &ExecutionResult<EVMAddress, EVMState, Out, ConciseEVMInput>,
     ) -> ConciseEVMInput {
         ConciseEVMInput::from_input(self, exec_res)
     }

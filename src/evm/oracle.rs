@@ -22,7 +22,6 @@ impl
         EVMAddress,
         Bytecode,
         Bytes,
-        EVMAddress,
         EVMU256,
         Vec<u8>,
         EVMInput,

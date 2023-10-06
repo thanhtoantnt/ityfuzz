@@ -141,12 +141,12 @@ impl CallPrinter {
 
 impl<I, VS, S> Middleware<VS, I, S> for CallPrinter
 where
-    I: Input + VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
+    I: Input + VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
     VS: VMStateT,
     S: State
         + HasCaller<EVMAddress>
         + HasCorpus<I>
-        + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
+        + HasItyState<EVMAddress, VS, ConciseEVMInput>
         + HasMetadata
         + HasCurrentInputIdx
         + Debug

@@ -19,23 +19,17 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 /// A trait for VM inputs that are sent to any smart contract VM
-pub trait VMInputT<VS, Loc, Addr, CI>:
+pub trait VMInputT<VS, Addr, CI>:
     Input + Debug + Clone + serde_traitobject::Serialize + serde_traitobject::Deserialize
 where
     VS: Default + VMStateT,
     Addr: Debug + Clone + Serialize + DeserializeOwned,
-    Loc: Debug + Clone + Serialize + DeserializeOwned,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// Mutate the input
     fn mutate<S>(&mut self, state: &mut S) -> MutationResult
     where
-        S: State
-            + HasRand
-            + HasMaxSize
-            + HasItyState<Loc, Addr, VS, CI>
-            + HasCaller<Addr>
-            + HasMetadata;
+        S: State + HasRand + HasMaxSize + HasItyState<Addr, VS, CI> + HasCaller<Addr> + HasMetadata;
     /// Get the caller address of the input (the address that sent the transaction)
     fn get_caller_mut(&mut self) -> &mut Addr;
     /// Get the caller address of the input
@@ -51,13 +45,13 @@ where
     /// Get the VM state of the input
     fn get_state_mut(&mut self) -> &mut VS;
     /// Set the staged VM state of the input
-    fn set_staged_state(&mut self, state: StagedVMState<Loc, Addr, VS, CI>, idx: usize);
+    fn set_staged_state(&mut self, state: StagedVMState<Addr, VS, CI>, idx: usize);
 
     /// Get the ID of the VM state in the infant state corpus
     fn get_state_idx(&self) -> usize;
 
     /// Get the staged VM state of the input
-    fn get_staged_state(&self) -> &StagedVMState<Loc, Addr, VS, CI>;
+    fn get_staged_state(&self) -> &StagedVMState<Addr, VS, CI>;
 
     /// Set to have post execution (incomplete execution)
     fn set_as_post_exec(&mut self, out_size: usize);
@@ -93,7 +87,7 @@ where
     fn get_direct_data(&self) -> Vec<u8>;
 
     /// Compressed representation of the input
-    fn get_concise<Out: Default>(&self, exec_res: &ExecutionResult<Loc, Addr, VS, Out, CI>) -> CI;
+    fn get_concise<Out: Default>(&self, exec_res: &ExecutionResult<Addr, VS, Out, CI>) -> CI;
 }
 
 pub trait ConciseSerde {

@@ -275,12 +275,12 @@ impl<I, VS> ConcolicHost<I, VS> {
 
 impl<I, VS, S> Middleware<VS, I, S> for ConcolicHost<I, VS>
 where
-    I: Input + VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
+    I: Input + VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
     VS: VMStateT,
     S: State
         + HasCaller<EVMAddress>
         + HasCorpus<I>
-        + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
+        + HasItyState<EVMAddress, VS, ConciseEVMInput>
         + HasMetadata
         + HasCurrentInputIdx
         + Debug

@@ -22,30 +22,28 @@ use crate::state::HasExecutionResult;
 /// Wrapper of smart contract VM, which implements LibAFL [`Executor`]
 /// TODO: in the future, we may need to add handlers?
 /// handle timeout/crash of executing contract
-pub struct FuzzExecutor<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, OT, CI>
+pub struct FuzzExecutor<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
 where
-    I: VMInputT<VS, Loc, Addr, CI>,
+    I: VMInputT<VS, Addr, CI>,
     OT: ObserversTuple<I, S>,
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
-    Loc: Serialize + DeserializeOwned + Debug + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// The VM executor
-    pub vm: Rc<RefCell<dyn GenericVM<VS, Code, By, Loc, Addr, SlotTy, Out, I, S, CI>>>,
+    pub vm: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI>>>,
     /// Observers (e.g., coverage)
     observers: OT,
     phantom: PhantomData<(I, S, Addr, Out)>,
 }
 
-impl<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, OT, CI> Debug
-    for FuzzExecutor<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, OT, CI>
+impl<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI> Debug
+    for FuzzExecutor<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
 where
-    I: VMInputT<VS, Loc, Addr, CI>,
+    I: VMInputT<VS, Addr, CI>,
     OT: ObserversTuple<I, S>,
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
-    Loc: Serialize + DeserializeOwned + Debug + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -56,19 +54,18 @@ where
     }
 }
 
-impl<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, OT, CI>
-    FuzzExecutor<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, OT, CI>
+impl<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
+    FuzzExecutor<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
 where
-    I: VMInputT<VS, Loc, Addr, CI>,
+    I: VMInputT<VS, Addr, CI>,
     OT: ObserversTuple<I, S>,
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
-    Loc: Serialize + DeserializeOwned + Debug + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// Create a new [`FuzzExecutor`]
     pub fn new(
-        vm_executor: Rc<RefCell<dyn GenericVM<VS, Code, By, Loc, Addr, SlotTy, Out, I, S, CI>>>,
+        vm_executor: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI>>>,
         observers: OT,
     ) -> Self {
         Self {
@@ -79,15 +76,14 @@ where
     }
 }
 
-impl<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, OT, EM, Z, CI> Executor<EM, I, S, Z>
-    for FuzzExecutor<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, OT, CI>
+impl<VS, Addr, Code, By, SlotTy, Out, I, S, OT, EM, Z, CI> Executor<EM, I, S, Z>
+    for FuzzExecutor<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
 where
-    I: VMInputT<VS, Loc, Addr, CI> + Input + 'static,
+    I: VMInputT<VS, Addr, CI> + Input + 'static,
     OT: ObserversTuple<I, S>,
-    S: State + HasExecutionResult<Loc, Addr, VS, Out, CI> + HasCorpus<I> + HasMetadata + 'static,
+    S: State + HasExecutionResult<Addr, VS, Out, CI> + HasCorpus<I> + HasMetadata + 'static,
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
-    Loc: Serialize + DeserializeOwned + Debug + Clone,
     Out: Default,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde + 'static,
 {
@@ -108,14 +104,14 @@ where
 }
 
 // implement HasObservers trait for ItyFuzzer
-impl<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, OT, CI> HasObservers<I, OT, S>
-    for FuzzExecutor<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, OT, CI>
+impl<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI> HasObservers<I, OT, S>
+    for FuzzExecutor<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
 where
-    I: VMInputT<VS, Loc, Addr, CI>,
+    I: VMInputT<VS, Addr, CI>,
     OT: ObserversTuple<I, S>,
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
-    Loc: Serialize + DeserializeOwned + Debug + Clone,
+
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// Get the observers

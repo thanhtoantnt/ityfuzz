@@ -242,9 +242,9 @@ impl BuildJobResult {
         }
     }
 
-    pub fn get_sourcemap_executor<VS, Addr, Code, By, Loc, SlotTy, Out, I, S: 'static, CI>(
+    pub fn get_sourcemap_executor<VS, Addr, Code, By, SlotTy, Out, I, S: 'static, CI>(
         _self: Option<&mut Self>,
-        executor: &mut Rc<RefCell<dyn GenericVM<VS, Code, By, Loc, Addr, SlotTy, Out, I, S, CI>>>,
+        executor: &mut Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI>>>,
         addr: &EVMAddress,
         additional_sourcemap: &ProjectSourceMapTy,
         pc: usize,

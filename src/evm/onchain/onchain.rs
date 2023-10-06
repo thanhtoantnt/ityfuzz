@@ -41,7 +41,7 @@ pub static mut WHITELIST_ADDR: Option<HashSet<EVMAddress>> = None;
 
 pub struct OnChain<VS, I, S>
 where
-    I: Input + VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput>,
+    I: Input + VMInputT<VS, EVMAddress, ConciseEVMInput>,
     S: State,
     VS: VMStateT + Default,
 {
@@ -61,7 +61,7 @@ where
 
 impl<VS, I, S> Debug for OnChain<VS, I, S>
 where
-    I: Input + VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput>,
+    I: Input + VMInputT<VS, EVMAddress, ConciseEVMInput>,
     S: State,
     VS: VMStateT + Default,
 {
@@ -76,7 +76,7 @@ where
 
 impl<VS, I, S> OnChain<VS, I, S>
 where
-    I: Input + VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput>,
+    I: Input + VMInputT<VS, EVMAddress, ConciseEVMInput>,
     S: State,
     VS: VMStateT + Default,
 {
@@ -147,13 +147,13 @@ pub fn keccak_hex(data: EVMU256) -> String {
 
 impl<VS, I, S> Middleware<VS, I, S> for OnChain<VS, I, S>
 where
-    I: Input + VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
+    I: Input + VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
     S: State
         + HasRand
         + Debug
         + HasCaller<EVMAddress>
         + HasCorpus<I>
-        + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
+        + HasItyState<EVMAddress, VS, ConciseEVMInput>
         + HasMetadata
         + Clone
         + 'static,

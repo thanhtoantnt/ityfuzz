@@ -10,26 +10,24 @@ use std::fmt::Debug;
 pub const MAP_SIZE: usize = 4096;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ExecutionResult<Loc, Addr, VS, Out, CI>
+pub struct ExecutionResult<Addr, VS, Out, CI>
 where
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug,
-    Loc: Serialize + DeserializeOwned + Debug,
     Out: Default,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     pub output: Out,
     pub reverted: bool,
     #[serde(deserialize_with = "StagedVMState::deserialize")]
-    pub new_state: StagedVMState<Loc, Addr, VS, CI>,
+    pub new_state: StagedVMState<Addr, VS, CI>,
     pub additional_info: Option<Vec<u8>>,
 }
 
-impl<Loc, Addr, VS, Out, CI> ExecutionResult<Loc, Addr, VS, Out, CI>
+impl<Addr, VS, Out, CI> ExecutionResult<Addr, VS, Out, CI>
 where
     VS: Default + VMStateT + 'static,
     Addr: Serialize + DeserializeOwned + Debug,
-    Loc: Serialize + DeserializeOwned + Debug,
     Out: Default,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
@@ -43,7 +41,7 @@ where
     }
 }
 
-pub trait GenericVM<VS, Code, By, Loc, Addr, SlotTy, Out, I, S, CI> {
+pub trait GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI> {
     fn deploy(
         &mut self,
         code: Code,
@@ -51,11 +49,10 @@ pub trait GenericVM<VS, Code, By, Loc, Addr, SlotTy, Out, I, S, CI> {
         deployed_address: Addr,
         state: &mut S,
     ) -> Option<Addr>;
-    fn execute(&mut self, input: &I, state: &mut S) -> ExecutionResult<Loc, Addr, VS, Out, CI>
+    fn execute(&mut self, input: &I, state: &mut S) -> ExecutionResult<Addr, VS, Out, CI>
     where
         VS: VMStateT,
         Addr: Serialize + DeserializeOwned + Debug,
-        Loc: Serialize + DeserializeOwned + Debug,
         Out: Default,
         CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde + 'static;
 
@@ -68,7 +65,6 @@ pub trait GenericVM<VS, Code, By, Loc, Addr, SlotTy, Out, I, S, CI> {
     where
         VS: VMStateT,
         Addr: Serialize + DeserializeOwned + Debug,
-        Loc: Serialize + DeserializeOwned + Debug,
         Out: Default;
 
     // all these method should be implemented via a global variable, instead of getting data from

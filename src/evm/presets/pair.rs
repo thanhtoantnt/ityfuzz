@@ -15,7 +15,7 @@ pub struct PairPreset;
 impl<I, S, VS> Preset<I, S, VS> for PairPreset
 where
     S: State + HasCaller<EVMAddress> + Debug + Clone + 'static,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT,
     VS: VMStateT,
 {
     fn presets(

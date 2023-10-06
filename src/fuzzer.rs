@@ -57,22 +57,20 @@ pub static mut ORACLE_OUTPUT: Vec<serde_json::Value> = vec![];
 /// S: The fuzzer state type
 /// VS: The VM state type
 /// Addr: The address type (e.g., H160)
-/// Loc: The call target location type (e.g., H160)
 #[derive(Debug)]
-pub struct ItyFuzzer<'a, VS, Loc, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
+pub struct ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
 where
     CS: Scheduler<I, S>,
-    IS: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>
-        + HasReportCorpus<InfantStateState<Loc, Addr, VS, CI>>,
+    IS: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>
+        + HasReportCorpus<InfantStateState<Addr, VS, CI>>,
     F: Feedback<I, S>,
     IF: Feedback<I, S>,
     IFR: Feedback<I, S>,
-    I: VMInputT<VS, Loc, Addr, CI>,
+    I: VMInputT<VS, Addr, CI>,
     OF: Feedback<I, S>,
     S: HasClientPerfMonitor + HasCorpus<I> + HasRand + HasMetadata,
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
-    Loc: Serialize + DeserializeOwned + Debug + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// The scheduler for the input corpus
@@ -90,26 +88,25 @@ where
     /// Map from hash of a testcase can do (e.g., coverage map) to the (testcase idx, fav factor)
     /// Used to minimize the corpus
     minimizer_map: HashMap<u64, (usize, f64)>,
-    phantom: PhantomData<(I, S, OT, VS, Loc, Addr, Out, CI)>,
+    phantom: PhantomData<(I, S, OT, VS, Addr, Out, CI)>,
     /// work dir path
     work_dir: String,
 }
 
-impl<'a, VS, Loc, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
-    ItyFuzzer<'a, VS, Loc, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
+impl<'a, VS, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
+    ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
 where
     CS: Scheduler<I, S>,
-    IS: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>
-        + HasReportCorpus<InfantStateState<Loc, Addr, VS, CI>>,
+    IS: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>
+        + HasReportCorpus<InfantStateState<Addr, VS, CI>>,
     F: Feedback<I, S>,
     IF: Feedback<I, S>,
     IFR: Feedback<I, S>,
-    I: VMInputT<VS, Loc, Addr, CI>,
+    I: VMInputT<VS, Addr, CI>,
     OF: Feedback<I, S>,
     S: HasClientPerfMonitor + HasCorpus<I> + HasRand + HasMetadata,
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
-    Loc: Serialize + DeserializeOwned + Debug + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// Creates a new ItyFuzzer
@@ -187,18 +184,17 @@ where
 }
 
 /// Implement fuzzer trait for ItyFuzzer
-impl<'a, VS, Loc, Addr, Out, CS, IS, E, EM, F, IF, IFR, I, OF, S, ST, OT, CI>
-    Fuzzer<E, EM, I, S, ST>
-    for ItyFuzzer<'a, VS, Loc, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
+impl<'a, VS, Addr, Out, CS, IS, E, EM, F, IF, IFR, I, OF, S, ST, OT, CI> Fuzzer<E, EM, I, S, ST>
+    for ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
 where
     CS: Scheduler<I, S>,
-    IS: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>
-        + HasReportCorpus<InfantStateState<Loc, Addr, VS, CI>>,
+    IS: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>
+        + HasReportCorpus<InfantStateState<Addr, VS, CI>>,
     EM: EventManager<E, I, S, Self>,
     F: Feedback<I, S>,
     IF: Feedback<I, S>,
     IFR: Feedback<I, S>,
-    I: VMInputT<VS, Loc, Addr, CI>,
+    I: VMInputT<VS, Addr, CI>,
     OF: Feedback<I, S>,
     S: HasClientPerfMonitor
         + HasExecutions
@@ -209,7 +205,6 @@ where
     ST: StagesTuple<E, EM, S, Self> + ?Sized,
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
-    Loc: Serialize + DeserializeOwned + Debug + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// Fuzz one input
@@ -338,32 +333,31 @@ macro_rules! dump_txn {
 }
 
 // implement evaluator trait for ItyFuzzer
-impl<'a, VS, Loc, Addr, Out, E, EM, I, S, CS, IS, F, IF, IFR, OF, OT, CI> Evaluator<E, EM, I, S>
-    for ItyFuzzer<'a, VS, Loc, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
+impl<'a, VS, Addr, Out, E, EM, I, S, CS, IS, F, IF, IFR, OF, OT, CI> Evaluator<E, EM, I, S>
+    for ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
 where
     CS: Scheduler<I, S>,
-    IS: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>
-        + HasReportCorpus<InfantStateState<Loc, Addr, VS, CI>>,
+    IS: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>
+        + HasReportCorpus<InfantStateState<Addr, VS, CI>>,
     F: Feedback<I, S>,
     IF: Feedback<I, S>,
     IFR: Feedback<I, S>,
     E: Executor<EM, I, S, Self> + HasObservers<I, OT, S>,
     OT: ObserversTuple<I, S> + serde::Serialize + serde::de::DeserializeOwned,
     EM: EventManager<E, I, S, Self>,
-    I: VMInputT<VS, Loc, Addr, CI>,
+    I: VMInputT<VS, Addr, CI>,
     OF: Feedback<I, S>,
     S: HasClientPerfMonitor
         + HasCorpus<I>
         + HasSolutions<I>
-        + HasInfantStateState<Loc, Addr, VS, CI>
-        + HasItyState<Loc, Addr, VS, CI>
-        + HasExecutionResult<Loc, Addr, VS, Out, CI>
+        + HasInfantStateState<Addr, VS, CI>
+        + HasItyState<Addr, VS, CI>
+        + HasExecutionResult<Addr, VS, Out, CI>
         + HasExecutions
         + HasMetadata
         + HasRand,
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
-    Loc: Serialize + DeserializeOwned + Debug + Clone,
     Out: Default,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {

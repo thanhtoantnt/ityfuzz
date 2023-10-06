@@ -101,7 +101,7 @@ pub fn is_precompile(address: EVMAddress, num_of_precompiles: usize) -> bool {
 pub struct FuzzHost<VS, I, S>
 where
     S: State + HasCaller<EVMAddress> + Debug + Clone + 'static,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT,
     VS: VMStateT,
 {
     pub evmstate: EVMState,
@@ -166,7 +166,7 @@ where
 impl<VS, I, S> Debug for FuzzHost<VS, I, S>
 where
     S: State + HasCaller<EVMAddress> + Debug + Clone + 'static,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT,
     VS: VMStateT,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -192,7 +192,7 @@ where
 impl<VS, I, S> Clone for FuzzHost<VS, I, S>
 where
     S: State + HasCaller<EVMAddress> + Debug + Clone + 'static,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT,
     VS: VMStateT,
 {
     fn clone(&self) -> Self {
@@ -252,9 +252,9 @@ where
         + Clone
         + HasCorpus<I>
         + HasMetadata
-        + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
+        + HasItyState<EVMAddress, VS, ConciseEVMInput>
         + 'static,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
     VS: VMStateT,
 {
     pub fn new(scheduler: Arc<dyn Scheduler<EVMInput, S>>, workdir: String) -> Self {
@@ -838,9 +838,9 @@ where
         + Clone
         + HasCorpus<I>
         + HasMetadata
-        + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
+        + HasItyState<EVMAddress, VS, ConciseEVMInput>
         + 'static,
-    I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
+    I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
     VS: VMStateT,
 {
     fn step(&mut self, interp: &mut Interpreter, state: &mut S) -> InstructionResult {

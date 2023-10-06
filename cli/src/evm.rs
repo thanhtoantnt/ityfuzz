@@ -7,12 +7,10 @@ use ityfuzz::evm::contract_utils::ContractLoader;
 use ityfuzz::evm::input::{ConciseEVMInput, EVMInput};
 use ityfuzz::evm::onchain::endpoints::{Chain, OnChainConfig};
 use ityfuzz::evm::onchain::flashloan::DummyPriceOracle;
-use ityfuzz::evm::producers::erc20::ERC20Producer;
-use ityfuzz::evm::producers::pair::PairProducer;
 use ityfuzz::evm::types::{EVMAddress, EVMFuzzState, EVMU256};
 use ityfuzz::evm::vm::EVMState;
 use ityfuzz::fuzzers::evm_fuzzer::evm_fuzzer;
-use ityfuzz::oracle::{Oracle, Producer};
+use ityfuzz::oracle::Oracle;
 use ityfuzz::state::FuzzState;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -255,8 +253,6 @@ pub fn evm_main(args: EvmArgs) {
             .etherscan_api_key
             .push(args.onchain_etherscan_api_key.unwrap());
     }
-    let pair_producer = Rc::new(RefCell::new(PairProducer::new()));
-    let erc20_producer = Rc::new(RefCell::new(ERC20Producer::new()));
 
     let oracles: Vec<
         Rc<
@@ -266,7 +262,6 @@ pub fn evm_main(args: EvmArgs) {
                     EVMAddress,
                     _,
                     _,
-                    EVMAddress,
                     EVMU256,
                     Vec<u8>,
                     EVMInput,
@@ -276,33 +271,6 @@ pub fn evm_main(args: EvmArgs) {
             >,
         >,
     > = vec![];
-
-    let mut producers: Vec<
-        Rc<
-            RefCell<
-                dyn Producer<
-                    EVMState,
-                    EVMAddress,
-                    _,
-                    _,
-                    EVMAddress,
-                    EVMU256,
-                    Vec<u8>,
-                    EVMInput,
-                    EVMFuzzState,
-                    ConciseEVMInput,
-                >,
-            >,
-        >,
-    > = vec![];
-
-    if args.ierc20_oracle || args.pair_oracle {
-        producers.push(pair_producer);
-    }
-
-    if args.ierc20_oracle {
-        producers.push(erc20_producer);
-    }
 
     let is_onchain = onchain.is_some();
     let mut state: EVMFuzzState = FuzzState::new(args.seed);
@@ -419,7 +387,6 @@ pub fn evm_main(args: EvmArgs) {
         concolic: args.concolic,
         concolic_caller: args.concolic_caller,
         oracle: oracles,
-        producers,
         price_oracle: match args.flashloan_price_oracle.as_str() {
             "onchain" => {
                 Box::new(onchain_clone.expect("onchain unavailable but used for flashloan"))

@@ -102,12 +102,12 @@ impl Sha3TaintAnalysis {
 
 impl<I, VS, S> Middleware<VS, I, S> for Sha3TaintAnalysis
 where
-    I: Input + VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
+    I: Input + VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
     VS: VMStateT,
     S: State
         + HasCaller<EVMAddress>
         + HasCorpus<I>
-        + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
+        + HasItyState<EVMAddress, VS, ConciseEVMInput>
         + HasMetadata
         + HasCurrentInputIdx
         + Debug
@@ -421,12 +421,12 @@ impl Sha3Bypass {
 
 impl<I, VS, S> Middleware<VS, I, S> for Sha3Bypass
 where
-    I: Input + VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
+    I: Input + VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
     VS: VMStateT,
     S: State
         + HasCaller<EVMAddress>
         + HasCorpus<I>
-        + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
+        + HasItyState<EVMAddress, VS, ConciseEVMInput>
         + HasMetadata
         + HasCurrentInputIdx
         + Debug

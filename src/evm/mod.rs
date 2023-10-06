@@ -15,8 +15,6 @@ pub mod mutator;
 pub mod onchain;
 pub mod oracle;
 pub mod oracles;
-pub mod presets;
-pub mod producers;
 pub mod srcmap;
 pub mod types;
 pub mod uniswap;

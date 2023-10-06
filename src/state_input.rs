@@ -13,11 +13,10 @@ use serde::{Deserialize, Serialize};
 /// StagedVMState is a wrapper around a VMState that can be stored in a corpus.
 /// It also has stage field that is used to store the stage of the oracle execution on such a VMState.
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct StagedVMState<Loc, Addr, VS, CI>
+pub struct StagedVMState<Addr, VS, CI>
 where
     VS: Default + VMStateT,
     Addr: Debug,
-    Loc: Debug,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     #[serde(deserialize_with = "VS::deserialize")]
@@ -25,14 +24,13 @@ where
     pub stage: Vec<u64>,
     pub initialized: bool,
     #[serde(deserialize_with = "TxnTrace::deserialize")]
-    pub trace: TxnTrace<Loc, Addr, CI>, // Trace building up such a VMState
+    pub trace: TxnTrace<Addr, CI>, // Trace building up such a VMState
 }
 
-impl<Loc, Addr, VS, CI> StagedVMState<Loc, Addr, VS, CI>
+impl<Addr, VS, CI> StagedVMState<Addr, VS, CI>
 where
     VS: Default + VMStateT,
     Addr: Debug,
-    Loc: Debug,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// Create a new StagedVMState with a given VMState
@@ -56,11 +54,10 @@ where
     }
 }
 
-impl<Loc, Addr, VS, CI> Input for StagedVMState<Loc, Addr, VS, CI>
+impl<Addr, VS, CI> Input for StagedVMState<Addr, VS, CI>
 where
     VS: Default + VMStateT,
     Addr: Debug + Serialize + DeserializeOwned + Clone,
-    Loc: Debug + Serialize + DeserializeOwned + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     fn generate_name(&self, idx: usize) -> String {
