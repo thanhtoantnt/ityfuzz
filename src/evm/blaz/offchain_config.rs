@@ -1,4 +1,3 @@
-use crate::evm::blaz::get_client;
 use crate::evm::types::EVMAddress;
 use revm_primitives::HashMap;
 use serde_json::Value;
@@ -15,12 +14,6 @@ pub struct OffchainConfig {
 }
 
 impl OffchainConfig {
-    pub fn from_json_url(url: String) -> Result<Self, Box<dyn Error>> {
-        let client = get_client();
-        let resp = client.get(&url).send()?;
-        Self::from_json(resp.text().expect("parse json failed"))
-    }
-
     pub fn from_file(file: String) -> Result<Self, Box<dyn Error>> {
         let json = std::fs::read_to_string(file)?;
         Self::from_json(json)

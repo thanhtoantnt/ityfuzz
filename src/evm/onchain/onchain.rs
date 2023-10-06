@@ -29,7 +29,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::evm::blaz::builder::{ArtifactInfoMetadata, BuildJob};
+use crate::evm::blaz::builder::BuildJob;
 use crate::evm::corpus_initializer::ABIMap;
 use crate::evm::types::{convert_u256_to_h160, EVMAddress, EVMU256};
 use itertools::Itertools;
@@ -298,23 +298,6 @@ where
                 };
 
                 let mut abi = None;
-                if let Some(builder) = &self.builder {
-                    println!("onchain job {:?}", address_h160);
-                    let build_job =
-                        builder.onchain_job(self.endpoint.chain_name.clone(), address_h160);
-
-                    if let Some(job) = build_job {
-                        abi = Some(job.abi.clone());
-                        // replace the code with the one from builder
-                        println!("replace code for {:?} with builder's", address_h160);
-                        host.set_codedata(address_h160, contract_code.clone());
-                        state
-                            .metadata_mut()
-                            .get_mut::<ArtifactInfoMetadata>()
-                            .expect("artifact info metadata")
-                            .add(address_h160, job);
-                    }
-                }
 
                 if abi.is_none() {
                     println!("fetching abi {:?}", address_h160);

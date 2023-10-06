@@ -17,5 +17,4 @@ pub mod oracle;
 pub mod oracles;
 pub mod srcmap;
 pub mod types;
-pub mod uniswap;
 pub mod vm;

@@ -1,5 +1,4 @@
 use crate::evm::blaz::builder::BuildJobResult;
-use crate::evm::blaz::get_client;
 use bytes::Bytes;
 use itertools::Itertools;
 use revm_primitives::HashMap;
@@ -21,12 +20,6 @@ pub struct OffChainArtifact {
 }
 
 impl OffChainArtifact {
-    pub fn from_json_url(url: String) -> Result<Vec<Self>, Box<dyn Error>> {
-        let client = get_client();
-        let resp = client.get(&url).send()?;
-        Self::from_json(resp.text().expect("parse json failed"))
-    }
-
     pub fn from_file(file: String) -> Result<Vec<Self>, Box<dyn Error>> {
         let json = std::fs::read_to_string(file)?;
         Self::from_json(json)

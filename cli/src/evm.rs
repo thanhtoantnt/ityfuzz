@@ -1,7 +1,5 @@
 use clap::Parser;
 use ityfuzz::evm::blaz::builder::{BuildJob, BuildJobResult};
-use ityfuzz::evm::blaz::offchain_artifacts::OffChainArtifact;
-use ityfuzz::evm::blaz::offchain_config::OffchainConfig;
 use ityfuzz::evm::config::{Config, FuzzerTypes, StorageFetchingMode};
 use ityfuzz::evm::contract_utils::ContractLoader;
 use ityfuzz::evm::input::{ConciseEVMInput, EVMInput};
@@ -199,12 +197,10 @@ pub struct EvmArgs {
 enum EVMTargetType {
     Glob,
     Address,
-    ArtifactAndProxy,
-    Config,
 }
 
 pub fn evm_main(args: EvmArgs) {
-    let mut target_type: EVMTargetType = match args.target_type {
+    let target_type: EVMTargetType = match args.target_type {
         Some(v) => match v.as_str() {
             "glob" => EVMTargetType::Glob,
             "address" => EVMTargetType::Address,
@@ -291,37 +287,6 @@ pub fn evm_main(args: EvmArgs) {
         None
     };
 
-    let offchain_artifacts = if args.builder_artifacts_url.len() > 0 {
-        target_type = EVMTargetType::ArtifactAndProxy;
-        Some(
-            OffChainArtifact::from_json_url(args.builder_artifacts_url)
-                .expect("failed to parse builder artifacts"),
-        )
-    } else if args.builder_artifacts_file.len() > 0 {
-        target_type = EVMTargetType::ArtifactAndProxy;
-        Some(
-            OffChainArtifact::from_file(args.builder_artifacts_file)
-                .expect("failed to parse builder artifacts"),
-        )
-    } else {
-        None
-    };
-    let offchain_config = if args.offchain_config_url.len() > 0 {
-        target_type = EVMTargetType::Config;
-        Some(
-            OffchainConfig::from_json_url(args.offchain_config_url)
-                .expect("failed to parse offchain config"),
-        )
-    } else if args.offchain_config_file.len() > 0 {
-        target_type = EVMTargetType::Config;
-        Some(
-            OffchainConfig::from_file(args.offchain_config_file)
-                .expect("failed to parse offchain config"),
-        )
-    } else {
-        None
-    };
-
     let config = Config {
         fuzzer_type: FuzzerTypes::from_str(args.fuzzer_type.as_str()).expect("unknown fuzzer"),
         contract_loader: match target_type {
@@ -331,18 +296,6 @@ pub fn evm_main(args: EvmArgs) {
                 &proxy_deploy_codes,
                 &constructor_args_map,
             ),
-            EVMTargetType::Config => ContractLoader::from_config(
-                &offchain_artifacts.expect("offchain artifacts is required for config target type"),
-                &offchain_config.expect("offchain config is required for config target type"),
-            ),
-
-            EVMTargetType::ArtifactAndProxy => {
-                // ContractLoader::from_artifacts_and_proxy(
-                //     &offchain_artifacts.expect("offchain artifacts is required for artifact and proxy target type"),
-                //     &proxy_deploy_codes,
-                // )
-                todo!("Artifact and proxy is not supported yet")
-            }
             EVMTargetType::Address => {
                 if onchain.is_none() {
                     panic!("Onchain is required for address target type");
@@ -371,7 +324,6 @@ pub fn evm_main(args: EvmArgs) {
                 ContractLoader::from_address(
                     &mut onchain.as_mut().unwrap(),
                     HashSet::from_iter(addresses),
-                    builder.clone(),
                 )
             }
         },
