@@ -1,22 +1,22 @@
-/// Common generic types for EVM fuzzing
-use crate::evm::input::{ConciseEVMInput, EVMInput};
-use crate::evm::mutator::FuzzMutator;
-use crate::evm::vm::EVMState;
-use std::collections::HashMap;
-
-use crate::evm::srcmap::parser::SourceMapLocation;
-use crate::executor::FuzzExecutor;
-use crate::generic_vm::vm_executor::ExecutionResult;
-use crate::oracle::OracleCtx;
-use crate::scheduler::SortedDroppingScheduler;
-use crate::state::{FuzzState, InfantStateState};
-use crate::state_input::StagedVMState;
+use crate::{
+    evm::{
+        input::{ConciseEVMInput, EVMInput},
+        mutator::FuzzMutator,
+        srcmap::parser::SourceMapLocation,
+        vm::EVMState,
+    },
+    executor::FuzzExecutor,
+    generic_vm::vm_executor::ExecutionResult,
+    oracle::OracleCtx,
+    scheduler::SortedDroppingScheduler,
+    state::{FuzzState, InfantStateState},
+    state_input::StagedVMState,
+};
 use bytes::Bytes;
-use libafl::prelude::Rand;
-use libafl::prelude::{HasRand, RomuDuoJrRand};
+use libafl::prelude::{HasRand, Rand, RomuDuoJrRand};
 use primitive_types::H160;
-use revm_primitives::ruint::aliases::U512;
-use revm_primitives::{Bytecode, B160, U256};
+use revm_primitives::{ruint::aliases::U512, Bytecode, B160, U256};
+use std::collections::HashMap;
 
 pub type EVMAddress = B160;
 pub type EVMU256 = U256;
@@ -46,11 +46,8 @@ pub type EVMFuzzMutator<'a> = FuzzMutator<
 >;
 
 pub type EVMInfantStateState = InfantStateState<EVMAddress, EVMState, ConciseEVMInput>;
-
 pub type EVMStagedVMState = StagedVMState<EVMAddress, EVMState, ConciseEVMInput>;
-
 pub type EVMExecutionResult = ExecutionResult<EVMAddress, EVMState, Vec<u8>, ConciseEVMInput>;
-
 pub type ProjectSourceMapTy = HashMap<EVMAddress, Option<HashMap<usize, SourceMapLocation>>>;
 
 pub type EVMFuzzExecutor<OT> = FuzzExecutor<

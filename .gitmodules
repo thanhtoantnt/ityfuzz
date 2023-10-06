@@ -2,3 +2,6 @@
     path = externals/revm
     url = https://github.com/fuzzland/revm.git
     branch = ityfuzz-fork
+[submodule "lib/cairo-vm"]
+	path = lib/cairo-vm
+	url = git@github.com:thanhtoantnt/cairo-vm.git

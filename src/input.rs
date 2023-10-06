@@ -86,7 +86,6 @@ where
     /// Used for EVM debug / replaying, get the encoded input
     fn get_direct_data(&self) -> Vec<u8>;
 
-    /// Compressed representation of the input
     fn get_concise<Out: Default>(&self, exec_res: &ExecutionResult<Addr, VS, Out, CI>) -> CI;
 }
 

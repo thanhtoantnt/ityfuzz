@@ -1,44 +1,43 @@
-/// Utilities to initialize the corpus
-/// Add all potential calls with default args to the corpus
-use crate::evm::abi::{get_abi_type_boxed, BoxedABI};
-use crate::evm::bytecode_analyzer;
-use crate::evm::contract_utils::{extract_sig_from_contract, ABIConfig, ContractLoader};
-use crate::evm::input::{ConciseEVMInput, EVMInput};
-use crate::evm::mutator::AccessPattern;
-
-use crate::evm::types::{
-    fixed_address, EVMAddress, EVMFuzzState, EVMInfantStateState, EVMStagedVMState,
-    ProjectSourceMapTy, EVMU256,
+use crate::{
+    dump_txn,
+    evm::{
+        abi::{get_abi_type_boxed, BoxedABI},
+        bytecode_analyzer,
+        contract_utils::{extract_sig_from_contract, ABIConfig, ContractLoader},
+        input::{ConciseEVMInput, EVMInput},
+        mutator::AccessPattern,
+        types::{
+            fixed_address, EVMAddress, EVMFuzzState, EVMInfantStateState, EVMStagedVMState,
+            ProjectSourceMapTy, EVMU256,
+        },
+        vm::{EVMExecutor, EVMState},
+    },
+    fuzzer::{DUMP_FILE_COUNT, REPLAY},
+    generic_vm::vm_executor::GenericVM,
+    input::ConciseSerde,
+    state::HasCaller,
+    state_input::StagedVMState,
 };
-use crate::evm::vm::{EVMExecutor, EVMState};
-use crate::generic_vm::vm_executor::GenericVM;
-
-use crate::state::HasCaller;
-use crate::state_input::StagedVMState;
 use bytes::Bytes;
-use libafl::corpus::{Corpus, Testcase};
-
-#[cfg(feature = "print_txn_corpus")]
-use crate::fuzzer::DUMP_FILE_COUNT;
-use crate::fuzzer::REPLAY;
-use libafl::schedulers::Scheduler;
-use libafl::state::HasCorpus;
-use revm_primitives::Bytecode;
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-
 use hex;
-use std::rc::Rc;
-use std::time::Duration;
-
-use crate::dump_txn;
-use crate::input::ConciseSerde;
-use libafl::impl_serdeany;
-use libafl::prelude::HasMetadata;
+use libafl::{
+    corpus::{Corpus, Testcase},
+    impl_serdeany,
+    prelude::HasMetadata,
+    schedulers::Scheduler,
+    state::HasCorpus,
+};
+use revm_primitives::Bytecode;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    fs::File,
+    io::Write,
+    path::Path,
+    rc::Rc,
+    time::Duration,
+};
 
 use crate::evm::types::EVMExecutionResult;
 
@@ -47,8 +46,6 @@ pub struct EVMCorpusInitializer<'a> {
     scheduler: &'a dyn Scheduler<EVMInput, EVMFuzzState>,
     infant_scheduler: &'a dyn Scheduler<EVMStagedVMState, EVMInfantStateState>,
     state: &'a mut EVMFuzzState,
-    #[cfg(feature = "use_presets")]
-    presets: Vec<&'a dyn Preset<EVMInput, EVMFuzzState, EVMState>>,
     work_dir: String,
 }
 
@@ -141,15 +138,8 @@ impl<'a> EVMCorpusInitializer<'a> {
             scheduler,
             infant_scheduler,
             state,
-            #[cfg(feature = "use_presets")]
-            presets: vec![],
             work_dir,
         }
-    }
-
-    #[cfg(feature = "use_presets")]
-    pub fn register_preset(&mut self, preset: &'a dyn Preset<EVMInput, EVMFuzzState, EVMState>) {
-        self.presets.push(preset);
     }
 
     pub fn initialize(&mut self, loader: &mut ContractLoader) -> EVMInitializationArtifacts {
@@ -266,10 +256,6 @@ impl<'a> EVMCorpusInitializer<'a> {
                     env: Default::default(),
                     access_pattern: Rc::new(RefCell::new(AccessPattern::new())),
                     direct_data: Default::default(),
-                    #[cfg(feature = "flashloan_v2")]
-                    liquidation_percent: 0,
-                    #[cfg(feature = "flashloan_v2")]
-                    input_type: EVMInputTy::ABI,
                     randomness: vec![0],
                     repeat: 1,
                 };
@@ -372,29 +358,13 @@ impl<'a> EVMCorpusInitializer<'a> {
             step: false,
             env: Default::default(),
             access_pattern: Rc::new(RefCell::new(AccessPattern::new())),
-            #[cfg(feature = "flashloan_v2")]
-            liquidation_percent: 0,
-            #[cfg(feature = "flashloan_v2")]
-            input_type: EVMInputTy::ABI,
             direct_data: Default::default(),
             randomness: vec![0],
             repeat: 1,
         };
         add_input_to_corpus!(self.state, scheduler, input.clone());
-        #[cfg(feature = "print_txn_corpus")]
-        {
-            let corpus_dir = format!("{}/corpus", self.work_dir.as_str()).to_string();
-            dump_txn!(corpus_dir, &input)
-        }
-        #[cfg(feature = "use_presets")]
-        {
-            let presets = self.presets.clone();
-            for p in presets {
-                let mut presets = p.presets(abi.function, &input, self.executor);
-                presets.iter().for_each(|preset| {
-                    add_input_to_corpus!(self.state, scheduler, preset.clone());
-                });
-            }
-        }
+
+        let corpus_dir = format!("{}/corpus", self.work_dir.as_str()).to_string();
+        dump_txn!(corpus_dir, &input)
     }
 }
