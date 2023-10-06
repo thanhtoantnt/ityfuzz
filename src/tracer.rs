@@ -35,11 +35,6 @@ where
         }
     }
 
-    // /// Add a transaction to the trace
-    // pub fn add_txn(&mut self, layer: u8, description: String, txn: Vec<u8>) {
-    //     self.transactions.push((layer, description, txn));
-    // }
-    //
     /// Add a transaction to the trace
     pub fn add_input(&mut self, input: CI) {
         self.transactions.push(input);

@@ -48,7 +48,6 @@ impl FuzzerTypes {
 pub struct Config<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, CI> {
     pub onchain: Option<OnChainConfig>,
     pub onchain_storage_fetching: Option<StorageFetchingMode>,
-    pub flashloan: bool,
     pub concolic: bool,
     pub concolic_caller: bool,
     pub fuzzer_type: FuzzerTypes,

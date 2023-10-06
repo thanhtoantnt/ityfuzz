@@ -37,7 +37,6 @@ use crate::evm::corpus_initializer::EVMCorpusInitializer;
 use crate::evm::input::{ConciseEVMInput, EVMInput};
 
 use crate::evm::mutator::FuzzMutator;
-use crate::evm::onchain::flashloan::Flashloan;
 use crate::evm::onchain::onchain::{OnChain, WHITELIST_ADDR};
 
 use crate::evm::types::{fixed_address, EVMAddress, EVMFuzzMutator, EVMFuzzState, EVMU256};
@@ -150,33 +149,6 @@ pub fn evm_fuzzer(
         }
     }
 
-    if config.flashloan {
-        // we should use real balance of tokens in the contract instead of providing flashloan
-        // to contract as well for on chain env
-        #[cfg(not(feature = "flashloan_v2"))]
-        fuzz_host.add_middlewares(Rc::new(RefCell::new(Flashloan::<
-            EVMState,
-            EVMInput,
-            EVMFuzzState,
-        >::new(
-            config.onchain.is_some()
-        ))));
-
-        #[cfg(feature = "flashloan_v2")]
-        {
-            assert!(
-                onchain_middleware.is_some(),
-                "Flashloan v2 requires onchain env"
-            );
-            fuzz_host.add_flashloan_middleware(Flashloan::<EVMState, EVMInput, EVMFuzzState>::new(
-                true,
-                config.onchain.clone().unwrap(),
-                config.price_oracle,
-                onchain_middleware.unwrap(),
-                config.flashloan_oracle,
-            ));
-        }
-    }
     let sha3_taint = Rc::new(RefCell::new(Sha3TaintAnalysis::new()));
 
     if config.sha3_bypass {
@@ -200,9 +172,6 @@ pub fn evm_fuzzer(
         state,
         config.work_dir.clone(),
     );
-
-    #[cfg(feature = "use_presets")]
-    corpus_initializer.register_preset(&PairPreset {});
 
     let mut artifacts = corpus_initializer.initialize(&mut config.contract_loader.clone());
 

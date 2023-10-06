@@ -71,7 +71,6 @@ where
             phantom: Default::default(),
         }
     }
-
 }
 
 /// Producer trait provides functions needed to produce data for the oracle

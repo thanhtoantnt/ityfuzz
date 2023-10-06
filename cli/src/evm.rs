@@ -420,7 +420,6 @@ pub fn evm_main(args: EvmArgs) {
         concolic_caller: args.concolic_caller,
         oracle: oracles,
         producers,
-        flashloan: args.flashloan,
         price_oracle: match args.flashloan_price_oracle.as_str() {
             "onchain" => {
                 Box::new(onchain_clone.expect("onchain unavailable but used for flashloan"))
