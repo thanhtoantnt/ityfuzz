@@ -51,21 +51,18 @@ pub static mut ORACLE_OUTPUT: Vec<serde_json::Value> = vec![];
 /// CS: The scheduler for the input corpus
 /// IS: The scheduler for the infant state corpus
 /// F: The feedback for the input corpus (e.g., coverage map)
-/// IF: The feedback for the infant state corpus (e.g., comparison, etc.)
 /// I: The VM input type
 /// OF: The objective for the input corpus (e.g., oracles)
 /// S: The fuzzer state type
 /// VS: The VM state type
 /// Addr: The address type (e.g., H160)
 #[derive(Debug)]
-pub struct ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
+pub struct ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, I, OF, S, OT, CI>
 where
     CS: Scheduler<I, S>,
     IS: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>
         + HasReportCorpus<InfantStateState<Addr, VS, CI>>,
     F: Feedback<I, S>,
-    IF: Feedback<I, S>,
-    IFR: Feedback<I, S>,
     I: VMInputT<VS, Addr, CI>,
     OF: Feedback<I, S>,
     S: HasClientPerfMonitor + HasCorpus<I> + HasRand + HasMetadata,
@@ -73,35 +70,22 @@ where
     Addr: Serialize + DeserializeOwned + Debug + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
-    /// The scheduler for the input corpus
     scheduler: CS,
-    /// The feedback for the input corpus (e.g., coverage map)
     feedback: F,
-    /// The feedback for the input state and execution result in infant state corpus (e.g., comparison, etc.)
-    infant_feedback: IF,
-    /// The feedback for the resultant state to be inserted into infant state corpus (e.g., dataflow, etc.)
-    infant_result_feedback: IFR,
-    /// The scheduler for the infant state corpus
     infant_scheduler: &'a IS,
-    /// The objective for the input corpus (e.g., oracles)
     objective: OF,
-    /// Map from hash of a testcase can do (e.g., coverage map) to the (testcase idx, fav factor)
-    /// Used to minimize the corpus
     minimizer_map: HashMap<u64, (usize, f64)>,
     phantom: PhantomData<(I, S, OT, VS, Addr, Out, CI)>,
-    /// work dir path
     work_dir: String,
 }
 
-impl<'a, VS, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
-    ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
+impl<'a, VS, Addr, Out, CS, IS, F, I, OF, S, OT, CI>
+    ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, I, OF, S, OT, CI>
 where
     CS: Scheduler<I, S>,
     IS: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>
         + HasReportCorpus<InfantStateState<Addr, VS, CI>>,
     F: Feedback<I, S>,
-    IF: Feedback<I, S>,
-    IFR: Feedback<I, S>,
     I: VMInputT<VS, Addr, CI>,
     OF: Feedback<I, S>,
     S: HasClientPerfMonitor + HasCorpus<I> + HasRand + HasMetadata,
@@ -114,16 +98,12 @@ where
         scheduler: CS,
         infant_scheduler: &'a IS,
         feedback: F,
-        infant_feedback: IF,
-        infant_result_feedback: IFR,
         objective: OF,
         work_dir: String,
     ) -> Self {
         Self {
             scheduler,
             feedback,
-            infant_feedback,
-            infant_result_feedback,
             infant_scheduler,
             objective,
             work_dir,
@@ -184,16 +164,14 @@ where
 }
 
 /// Implement fuzzer trait for ItyFuzzer
-impl<'a, VS, Addr, Out, CS, IS, E, EM, F, IF, IFR, I, OF, S, ST, OT, CI> Fuzzer<E, EM, I, S, ST>
-    for ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
+impl<'a, VS, Addr, Out, CS, IS, E, EM, F, I, OF, S, ST, OT, CI> Fuzzer<E, EM, I, S, ST>
+    for ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, I, OF, S, OT, CI>
 where
     CS: Scheduler<I, S>,
     IS: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>
         + HasReportCorpus<InfantStateState<Addr, VS, CI>>,
     EM: EventManager<E, I, S, Self>,
     F: Feedback<I, S>,
-    IF: Feedback<I, S>,
-    IFR: Feedback<I, S>,
     I: VMInputT<VS, Addr, CI>,
     OF: Feedback<I, S>,
     S: HasClientPerfMonitor
@@ -261,7 +239,6 @@ macro_rules! dump_file {
 
             let tx_trace = $state.get_execution_result().new_state.trace.clone();
             let txn_text = tx_trace.to_string($state);
-            let txn_text_replayable = tx_trace.to_file_str($state);
 
             let data = format!(
                 "Reverted? {} \n Txn: {}",
@@ -282,15 +259,6 @@ macro_rules! dump_file {
             let mut file =
                 File::create(format!("{}/{}", $corpus_path, unsafe { DUMP_FILE_COUNT })).unwrap();
             file.write_all(data.as_bytes()).unwrap();
-
-            let mut replayable_file =
-                File::create(format!("{}/{}_replayable", $corpus_path, unsafe {
-                    DUMP_FILE_COUNT
-                }))
-                .unwrap();
-            replayable_file
-                .write_all(txn_text_replayable.as_bytes())
-                .unwrap();
         }
     }};
 }
@@ -333,15 +301,13 @@ macro_rules! dump_txn {
 }
 
 // implement evaluator trait for ItyFuzzer
-impl<'a, VS, Addr, Out, E, EM, I, S, CS, IS, F, IF, IFR, OF, OT, CI> Evaluator<E, EM, I, S>
-    for ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, IF, IFR, I, OF, S, OT, CI>
+impl<'a, VS, Addr, Out, E, EM, I, S, CS, IS, F, OF, OT, CI> Evaluator<E, EM, I, S>
+    for ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, I, OF, S, OT, CI>
 where
     CS: Scheduler<I, S>,
     IS: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>
         + HasReportCorpus<InfantStateState<Addr, VS, CI>>,
     F: Feedback<I, S>,
-    IF: Feedback<I, S>,
-    IFR: Feedback<I, S>,
     E: Executor<EM, I, S, Self> + HasObservers<I, OT, S>,
     OT: ObserversTuple<I, S> + serde::Serialize + serde::de::DeserializeOwned,
     EM: EventManager<E, I, S, Self>,
@@ -392,11 +358,6 @@ where
 
         let reverted = state.get_execution_result().reverted;
 
-        // get new stage first
-        let is_infant_interesting = self
-            .infant_feedback
-            .is_interesting(state, manager, &input, observers, &exitkind)?;
-
         let is_solution = self
             .objective
             .is_interesting(state, manager, &input, observers, &exitkind)?;
@@ -414,20 +375,12 @@ where
 
         // add the new VM state to infant state corpus if it is interesting
         let mut state_idx = input.get_state_idx();
-        if is_infant_interesting && !reverted {
+        if !reverted {
             state_idx = state.add_infant_state(
                 &state.get_execution_result().new_state.clone(),
                 self.infant_scheduler,
                 input.get_state_idx(),
             );
-
-            if self
-                .infant_result_feedback
-                .is_interesting(state, manager, &input, observers, &exitkind)?
-            {
-                self.infant_scheduler
-                    .sponsor_state(state.get_infant_state_state(), state_idx, 3)
-            }
         }
 
         let mut res = ExecuteInputResult::None;

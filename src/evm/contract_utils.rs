@@ -1,5 +1,4 @@
 use crate::evm::types::{fixed_address, generate_random_address, EVMAddress, EVMFuzzState};
-/// Load contract from file system or remote
 use glob::glob;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -12,7 +11,6 @@ use std::path::Path;
 extern crate crypto;
 
 use crate::evm::abi::get_abi_type_boxed_with_address;
-use crate::evm::onchain::endpoints::OnChainConfig;
 use crate::evm::srcmap::parser::{decode_instructions, SourceMapLocation};
 
 use self::crypto::digest::Digest;
@@ -380,45 +378,6 @@ impl ContractLoader {
         }
 
         ContractLoader { contracts, abis }
-    }
-
-    pub fn from_address(onchain: &mut OnChainConfig, address: HashSet<EVMAddress>) -> Self {
-        let mut contracts: Vec<ContractInfo> = vec![];
-        let mut abis: Vec<ABIInfo> = vec![];
-        for addr in address {
-            let mut abi = None;
-            let mut bytecode = None;
-            let build_artifact = None;
-
-            if abi.is_none() || bytecode.is_none() {
-                abi = onchain.fetch_abi(addr);
-                bytecode = Some(onchain.get_contract_code(addr, false));
-            }
-
-            let contract_code = bytecode.expect("Failed to get bytecode");
-
-            let abi_parsed = if let Some(abi) = abi {
-                Self::parse_abi_str(&abi)
-            } else {
-                println!("ABI not found for {}, we'll decompile", addr);
-                vec![]
-            };
-            contracts.push(ContractInfo {
-                name: format!("{:?}", addr),
-                code: contract_code.bytes().to_vec(),
-                abi: abi_parsed.clone(),
-                is_code_deployed: true,
-                constructor_args: vec![], // todo: fill this
-                deployed_address: addr,
-                source_map: None,
-                build_artifact,
-            });
-            abis.push(ABIInfo {
-                source: addr.to_string(),
-                abi: abi_parsed,
-            });
-        }
-        Self { contracts, abis }
     }
 
     pub fn from_config(

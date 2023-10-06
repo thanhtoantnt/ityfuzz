@@ -1,33 +1,27 @@
-/// Implements the feedback mechanism needed by ItyFuzz.
-/// Implements Oracle, Comparison, Dataflow feedbacks.
-use crate::generic_vm::vm_executor::{GenericVM, MAP_SIZE};
-use crate::generic_vm::vm_state::VMStateT;
-use crate::input::{ConciseSerde, VMInputT};
-use crate::oracle::{BugMetadata, Oracle, OracleCtx};
-use crate::scheduler::HasVote;
-use crate::state::{HasExecutionResult, HasInfantStateState, InfantStateState};
-use crate::state_input::StagedVMState;
-use libafl::corpus::Testcase;
-use libafl::events::EventFirer;
-use libafl::executors::ExitKind;
-use libafl::inputs::Input;
-use libafl::observers::ObserversTuple;
-use libafl::prelude::{Feedback, HasMetadata, Named};
-use libafl::schedulers::Scheduler;
-use libafl::state::{HasClientPerfMonitor, HasCorpus, State};
-use libafl::Error;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
-use std::cell::RefCell;
-use std::collections::HashSet;
-use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::rc::Rc;
+use crate::{
+    generic_vm::{vm_executor::GenericVM, vm_state::VMStateT},
+    input::{ConciseSerde, VMInputT},
+    oracle::{BugMetadata, Oracle, OracleCtx},
+    state::HasExecutionResult,
+};
+use libafl::{
+    corpus::Testcase,
+    events::EventFirer,
+    executors::ExitKind,
+    observers::ObserversTuple,
+    prelude::{Feedback, HasMetadata, Named},
+    state::{HasClientPerfMonitor, HasCorpus, State},
+    Error,
+};
+use serde::{de::DeserializeOwned, Serialize};
+use std::{
+    cell::RefCell,
+    fmt::{Debug, Formatter},
+    marker::PhantomData,
+    ops::Deref,
+    rc::Rc,
+};
 
-/// OracleFeedback is a wrapper around a set of oracles and producers.
-/// It executes the producers and then oracles after each successful execution. If any of the oracle
-/// returns true, then it returns true and report a vulnerability found.
 pub struct OracleFeedback<'a, VS, Addr, Code, By, SlotTy, Out, I, S: 'static, CI>
 where
     I: VMInputT<VS, Addr, CI>,
@@ -199,292 +193,6 @@ where
 
     // dummy method
     fn discard_metadata(&mut self, _state: &mut S, _input: &I) -> Result<(), Error> {
-        Ok(())
-    }
-}
-
-/// DataflowFeedback is a feedback that uses dataflow analysis to determine
-/// whether a state is interesting or not.
-/// Logic: Maintains read and write map, if a write map idx is true in the read map,
-/// and that item is greater than what we have, then the state is interesting.
-#[cfg(feature = "dataflow")]
-pub struct DataflowFeedback<'a, VS, Addr, Out, CI> {
-    /// global write map that OR all the write maps from each execution
-    /// `[bool;4]` means 4 categories of write map, representing which bucket the written value fails into
-    /// 0 - 2^2, 2^2 - 2^4, 2^4 - 2^6, 2^6 - inf are 4 buckets
-    global_write_map: [[bool; 4]; MAP_SIZE],
-    /// global read map recording whether a slot is read or not
-    read_map: &'a mut [bool],
-    /// write map of the current execution
-    write_map: &'a mut [u8],
-    phantom: PhantomData<(VS, Addr, Out, CI)>,
-}
-
-#[cfg(feature = "dataflow")]
-impl<'a, VS, Addr, Out, CI> Debug for DataflowFeedback<'a, VS, Addr, Out, CI> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("DataflowFeedback")
-            // .field("oracle", &self.oracle)
-            .finish()
-    }
-}
-
-#[cfg(feature = "dataflow")]
-impl<'a, VS, Addr, Out, CI> Named for DataflowFeedback<'a, VS, Addr, Out, CI> {
-    fn name(&self) -> &str {
-        "DataflowFeedback"
-    }
-}
-
-#[cfg(feature = "dataflow")]
-impl<'a, VS, Addr, Out, CI> DataflowFeedback<'a, VS, Addr, Out, CI> {
-    /// create a new dataflow feedback
-    pub fn new(read_map: &'a mut [bool], write_map: &'a mut [u8]) -> Self {
-        Self {
-            global_write_map: [[false; 4]; MAP_SIZE],
-            read_map,
-            write_map,
-            phantom: PhantomData,
-        }
-    }
-}
-
-#[cfg(feature = "dataflow")]
-impl<'a, VS, Addr, I, S, Out, CI> Feedback<I, S> for DataflowFeedback<'a, VS, Addr, Out, CI>
-where
-    S: State + HasClientPerfMonitor + HasExecutionResult<Addr, VS, Out, CI>,
-    I: VMInputT<VS, Addr, CI>,
-    VS: Default + VMStateT,
-    Addr: Serialize + DeserializeOwned + Debug + Clone,
-    Out: Default,
-    CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
-{
-    fn init_state(&mut self, _state: &mut S) -> Result<(), Error> {
-        Ok(())
-    }
-
-    /// Returns true if the dataflow analysis determines that the execution is interesting.
-    fn is_interesting<EMI, OT>(
-        &mut self,
-        _state: &mut S,
-        _manager: &mut EMI,
-        _input: &I,
-        _observers: &OT,
-        _exit_kind: &ExitKind,
-    ) -> Result<bool, Error>
-    where
-        EMI: EventFirer<I>,
-        OT: ObserversTuple<I, S>,
-    {
-        let mut interesting = false;
-        for i in 0..MAP_SIZE {
-            // if the global read map slot is true, and that slot in write map is also true
-            if self.read_map[i] && self.write_map[i] != 0 {
-                // bucketing
-                let category = if self.write_map[i] < (2 << 2) {
-                    0
-                } else if self.write_map[i] < (2 << 4) {
-                    1
-                } else if self.write_map[i] < (2 << 6) {
-                    2
-                } else {
-                    3
-                };
-                // update the global write map, if the current write map is not set, then it is interesting
-                if !self.global_write_map[i % MAP_SIZE][category] {
-                    // println!("Interesting seq: {}!!!!!!!!!!!!!!!!!", seq);
-                    interesting = true;
-                    self.global_write_map[i % MAP_SIZE][category] = true;
-                }
-            }
-        }
-
-        // clean up the write map for the next execution
-        for i in 0..MAP_SIZE {
-            self.write_map[i] = 0;
-        }
-        return Ok(interesting);
-    }
-
-    fn append_metadata(
-        &mut self,
-        _state: &mut S,
-        _testcase: &mut Testcase<I>,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    fn discard_metadata(&mut self, _state: &mut S, _input: &I) -> Result<(), Error> {
-        Ok(())
-    }
-}
-
-/// CmpFeedback is a feedback that uses cmp analysis to determine
-/// whether a state is interesting or not.
-///
-/// Logic: For each comparison encountered in execution, we calculate the absolute
-/// difference (distance) between the two operands.
-/// Smaller distance means the operands are closer to each other,
-/// and thus more likely the comparison will be true, opening up more paths. Our goal is to
-/// minimize the distance between the two operands of any comparisons.
-///
-/// We use this distance to update the min_map, which records the minimum distance
-/// for each comparison. If the current distance is smaller than the min_map, then we update the
-/// min_map and mark the it as interesting.
-///
-/// We also use a set of hashes of already encountered VMStates so that we don't re-analyze them.
-///
-/// When we consider an execution interesting, we use a votable scheduler to vote on whether
-/// the VMState is interesting or not. With more votes, the VMState is more likely to be selected
-/// for fuzzing.
-///
-#[cfg(feature = "cmp")]
-pub struct CmpFeedback<'a, VS, Addr, Code, By, SlotTy, Out, I, S, SC, CI> {
-    /// global min map recording the minimum distance for each comparison
-    min_map: [SlotTy; MAP_SIZE],
-    /// min map recording the minimum distance for each comparison in the current execution
-    current_map: &'a mut [SlotTy],
-    /// a set of hashes of already encountered VMStates so that we don't re-analyze them
-    known_states: HashSet<u64>,
-    /// votable scheduler that can vote on whether a VMState is interesting or not
-    scheduler: &'a SC,
-    /// the VM providing information about the current execution
-    vm: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI>>>,
-    phantom: PhantomData<(Addr, Out)>,
-}
-
-#[cfg(feature = "cmp")]
-impl<'a, VS, Addr, Code, By, SlotTy, Out, I, S, SC, CI>
-    CmpFeedback<'a, VS, Addr, Code, By, SlotTy, Out, I, S, SC, CI>
-where
-    SC: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>
-        + HasVote<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>,
-    VS: Default + VMStateT,
-    SlotTy: PartialOrd + Copy + TryFrom<u128>,
-    Addr: Serialize + DeserializeOwned + Debug + Clone,
-    <SlotTy as TryFrom<u128>>::Error: std::fmt::Debug,
-    CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
-{
-    /// Create a new CmpFeedback.
-    pub(crate) fn new(
-        current_map: &'a mut [SlotTy],
-        scheduler: &'a SC,
-        vm: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI>>>,
-    ) -> Self {
-        Self {
-            min_map: [SlotTy::try_from(u128::MAX).expect(""); MAP_SIZE],
-            current_map,
-            known_states: Default::default(),
-            scheduler,
-            vm,
-            phantom: Default::default(),
-        }
-    }
-}
-
-#[cfg(feature = "cmp")]
-impl<'a, VS, Addr, Code, By, SlotTy, Out, I, S, SC, CI> Named
-    for CmpFeedback<'a, VS, Addr, Code, By, SlotTy, Out, I, S, SC, CI>
-{
-    fn name(&self) -> &str {
-        "CmpFeedback"
-    }
-}
-
-#[cfg(feature = "cmp")]
-impl<'a, VS, Addr, Code, By, SlotTy, Out, I, S, SC, CI> Debug
-    for CmpFeedback<'a, VS, Addr, Code, By, SlotTy, Out, I, S, SC, CI>
-{
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CmpFeedback").finish()
-    }
-}
-
-#[cfg(feature = "cmp")]
-impl<'a, VS, Addr, Code, By, SlotTy, Out, I, S, I0, S0, SC, CI> Feedback<I0, S0>
-    for CmpFeedback<'a, VS, Addr, Code, By, SlotTy, Out, I, S, SC, CI>
-where
-    S0: State
-        + HasClientPerfMonitor
-        + HasInfantStateState<Addr, VS, CI>
-        + HasExecutionResult<Addr, VS, Out, CI>,
-    I0: Input + VMInputT<VS, Addr, CI>,
-    SC: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>
-        + HasVote<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>,
-    VS: Default + VMStateT + 'static,
-    SlotTy: PartialOrd + Copy,
-    Addr: Serialize + DeserializeOwned + Debug + Clone,
-    Out: Default,
-    CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
-{
-    fn init_state(&mut self, _state: &mut S0) -> Result<(), Error> {
-        Ok(())
-    }
-
-    /// It uses scheduler voting to determine whether a VM State is interesting or not.
-    /// If it returns true, the VM State is added to corpus but not necessarily it is interesting.
-    fn is_interesting<EMI, OT>(
-        &mut self,
-        state: &mut S0,
-        _manager: &mut EMI,
-        input: &I0,
-        _observers: &OT,
-        _exit_kind: &ExitKind,
-    ) -> Result<bool, Error>
-    where
-        EMI: EventFirer<I0>,
-        OT: ObserversTuple<I0, S0>,
-    {
-        let mut cmp_interesting = false;
-        let cov_interesting = false;
-
-        // check if the current distance is smaller than the min_map
-        for i in 0..MAP_SIZE {
-            if self.current_map[i] < self.min_map[i] {
-                self.min_map[i] = self.current_map[i];
-                cmp_interesting = true;
-            }
-        }
-
-        // if the current distance is smaller than the min_map, vote for the state
-        if cmp_interesting {
-            self.scheduler
-                .vote(state.get_infant_state_state(), input.get_state_idx(), 3);
-        }
-
-        // if coverage has increased, vote for the state
-        if cov_interesting {
-            self.scheduler
-                .vote(state.get_infant_state_state(), input.get_state_idx(), 3);
-        }
-
-        {
-            if self.vm.deref().borrow_mut().state_changed()
-                || state
-                    .get_execution_result()
-                    .new_state
-                    .state
-                    .has_post_execution()
-            {
-                let hash = state.get_execution_result().new_state.state.get_hash();
-                if self.known_states.contains(&hash) {
-                    return Ok(false);
-                }
-                return Ok(true);
-            }
-        }
-        Ok(false)
-    }
-
-    fn append_metadata(
-        &mut self,
-        _state: &mut S0,
-        _testcase: &mut Testcase<I0>,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    fn discard_metadata(&mut self, _state: &mut S0, _input: &I0) -> Result<(), Error> {
         Ok(())
     }
 }

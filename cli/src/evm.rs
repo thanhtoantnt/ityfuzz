@@ -1,10 +1,8 @@
 use clap::Parser;
 use ityfuzz::evm::blaz::builder::{BuildJob, BuildJobResult};
-use ityfuzz::evm::config::{Config, FuzzerTypes, StorageFetchingMode};
+use ityfuzz::evm::config::{Config, FuzzerTypes};
 use ityfuzz::evm::contract_utils::ContractLoader;
 use ityfuzz::evm::input::{ConciseEVMInput, EVMInput};
-use ityfuzz::evm::onchain::endpoints::{Chain, OnChainConfig};
-use ityfuzz::evm::onchain::flashloan::DummyPriceOracle;
 use ityfuzz::evm::types::{EVMAddress, EVMFuzzState, EVMU256};
 use ityfuzz::evm::vm::EVMState;
 use ityfuzz::fuzzers::evm_fuzzer::evm_fuzzer;
@@ -217,39 +215,6 @@ pub fn evm_main(args: EvmArgs) {
         }
     };
 
-    let mut onchain = if args.onchain {
-        match args.chain_type {
-            Some(chain_str) => {
-                let chain = Chain::from_str(&chain_str).expect("Invalid chain type");
-                let block_number = args.onchain_block_number.unwrap_or(0);
-                Some(OnChainConfig::new(chain, block_number))
-            }
-            None => Some(OnChainConfig::new_raw(
-                args.onchain_url
-                    .expect("You need to either specify chain type or chain rpc"),
-                args.onchain_chain_id
-                    .expect("You need to either specify chain type or chain id"),
-                args.onchain_block_number.unwrap_or(0),
-                args.onchain_explorer_url
-                    .expect("You need to either specify chain type or block explorer url"),
-                args.onchain_chain_name
-                    .expect("You need to either specify chain type or chain name"),
-            )),
-        }
-    } else {
-        None
-    };
-
-    let onchain_clone = onchain.clone();
-
-    if onchain.is_some() && args.onchain_etherscan_api_key.is_some() {
-        onchain
-            .as_mut()
-            .unwrap()
-            .etherscan_api_key
-            .push(args.onchain_etherscan_api_key.unwrap());
-    }
-
     let oracles: Vec<
         Rc<
             RefCell<
@@ -268,7 +233,6 @@ pub fn evm_main(args: EvmArgs) {
         >,
     > = vec![];
 
-    let is_onchain = onchain.is_some();
     let mut state: EVMFuzzState = FuzzState::new(args.seed);
 
     let proxy_deploy_codes: Vec<String> = vec![];
@@ -296,36 +260,7 @@ pub fn evm_main(args: EvmArgs) {
                 &proxy_deploy_codes,
                 &constructor_args_map,
             ),
-            EVMTargetType::Address => {
-                if onchain.is_none() {
-                    panic!("Onchain is required for address target type");
-                }
-                let mut args_target = args.target.clone();
-
-                if args.ierc20_oracle || args.flashloan {
-                    const ETH_ADDRESS: &str = "0x7a250d5630b4cf539739df2c5dacb4c659f2488d";
-                    const BSC_ADDRESS: &str = "0x10ed43c718714eb63d5aa57b78b54704e256024e";
-                    if "bsc" == onchain.as_ref().unwrap().chain_name {
-                        if args_target.find(BSC_ADDRESS) == None {
-                            args_target.push_str(",");
-                            args_target.push_str(BSC_ADDRESS);
-                        }
-                    } else if "eth" == onchain.as_ref().unwrap().chain_name {
-                        if args_target.find(ETH_ADDRESS) == None {
-                            args_target.push_str(",");
-                            args_target.push_str(ETH_ADDRESS);
-                        }
-                    }
-                }
-                let addresses: Vec<EVMAddress> = args_target
-                    .split(",")
-                    .map(|s| EVMAddress::from_str(s).unwrap())
-                    .collect();
-                ContractLoader::from_address(
-                    &mut onchain.as_mut().unwrap(),
-                    HashSet::from_iter(addresses),
-                )
-            }
+            _ => panic!("Not supported"),
         },
         only_fuzz: if args.only_fuzz.len() > 0 {
             args.only_fuzz
@@ -335,24 +270,10 @@ pub fn evm_main(args: EvmArgs) {
         } else {
             HashSet::new()
         },
-        onchain,
         concolic: args.concolic,
         concolic_caller: args.concolic_caller,
         oracle: oracles,
-        price_oracle: match args.flashloan_price_oracle.as_str() {
-            "onchain" => {
-                Box::new(onchain_clone.expect("onchain unavailable but used for flashloan"))
-            }
-            _ => Box::new(DummyPriceOracle {}),
-        },
-        onchain_storage_fetching: if is_onchain {
-            Some(
-                StorageFetchingMode::from_str(args.onchain_storage_fetching.as_str())
-                    .expect("unknown storage fetching mode"),
-            )
-        } else {
-            None
-        },
+        onchain_storage_fetching: None,
         replay_file: args.replay_file,
         selfdestruct_oracle: args.selfdestruct_oracle,
         state_comp_matching: if args.state_comp_oracle.len() > 0 {

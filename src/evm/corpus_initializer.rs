@@ -6,7 +6,6 @@ use crate::evm::contract_utils::{extract_sig_from_contract, ABIConfig, ContractL
 use crate::evm::input::{ConciseEVMInput, EVMInput};
 use crate::evm::mutator::AccessPattern;
 
-use crate::evm::onchain::onchain::BLACKLIST_ADDR;
 use crate::evm::types::{
     fixed_address, EVMAddress, EVMFuzzState, EVMInfantStateState, EVMStagedVMState,
     ProjectSourceMapTy, EVMU256,
@@ -290,16 +289,6 @@ impl<'a> EVMCorpusInitializer<'a> {
                     contract.deployed_address,
                     contract.abi.clone()
                 );
-            }
-
-            if unsafe {
-                BLACKLIST_ADDR.is_some()
-                    && BLACKLIST_ADDR
-                        .as_ref()
-                        .unwrap()
-                        .contains(&contract.deployed_address)
-            } {
-                continue;
             }
 
             for abi in contract.abi.clone() {

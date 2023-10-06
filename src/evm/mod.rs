@@ -6,7 +6,6 @@ pub mod concolic;
 pub mod config;
 pub mod contract_utils;
 pub mod corpus_initializer;
-pub mod cov_stage;
 pub mod feedbacks;
 pub mod host;
 pub mod input;

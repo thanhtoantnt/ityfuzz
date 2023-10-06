@@ -4,7 +4,6 @@ use crate::evm::middlewares::middleware::{
 };
 use crate::evm::mutator::AccessPattern;
 
-use crate::evm::onchain::flashloan::Flashloan;
 use bytes::Bytes;
 use itertools::Itertools;
 use libafl::prelude::{HasCorpus, HasMetadata, HasRand, Scheduler};
@@ -116,13 +115,8 @@ where
     pub pc_to_call_hash: HashMap<(EVMAddress, usize, usize), HashSet<Vec<u8>>>,
     pub middlewares_enabled: bool,
     pub middlewares: Rc<RefCell<Vec<Rc<RefCell<dyn Middleware<VS, I, S>>>>>>,
-
     pub coverage_changed: bool,
-
-    pub flashloan_middleware: Option<Rc<RefCell<Flashloan<VS, I, S>>>>,
-
     pub middlewares_latent_call_actions: Vec<CallMiddlewareReturn>,
-
     pub scheduler: Arc<dyn Scheduler<EVMInput, S>>,
 
     // controlled by onchain module, if sload cant find the slot, use this value
@@ -209,7 +203,6 @@ where
             middlewares_enabled: false,
             middlewares: Rc::new(RefCell::new(Default::default())),
             coverage_changed: false,
-            flashloan_middleware: None,
             middlewares_latent_call_actions: vec![],
             scheduler: self.scheduler.clone(),
             next_slot: Default::default(),
@@ -271,7 +264,6 @@ where
             middlewares_enabled: false,
             middlewares: Rc::new(RefCell::new(Default::default())),
             coverage_changed: false,
-            flashloan_middleware: None,
             middlewares_latent_call_actions: vec![],
             scheduler,
             next_slot: Default::default(),
@@ -364,10 +356,6 @@ where
             .retain(|x| x.deref().borrow().get_type() != *ty);
     }
 
-    pub fn add_flashloan_middleware(&mut self, middlware: Flashloan<VS, I, S>) {
-        self.flashloan_middleware = Some(Rc::new(RefCell::new(middlware)));
-    }
-
     pub fn initialize(&mut self, state: &S)
     where
         S: HasHashToAddress,
@@ -435,13 +423,6 @@ where
     pub fn set_code(&mut self, address: EVMAddress, mut code: Bytecode, state: &mut S) {
         unsafe {
             if self.middlewares_enabled {
-                match self.flashloan_middleware.clone() {
-                    Some(m) => {
-                        let mut middleware = m.deref().borrow_mut();
-                        middleware.on_insert(&mut code, address, self, state);
-                    }
-                    _ => {}
-                }
                 for middleware in &mut self.middlewares.clone().deref().borrow_mut().iter_mut() {
                     middleware
                         .deref()
@@ -774,13 +755,6 @@ macro_rules! u256_to_u8 {
 macro_rules! invoke_middlewares {
     ($host: expr, $interp: expr, $state: expr, $invoke: ident) => {
         if $host.middlewares_enabled {
-            match $host.flashloan_middleware.clone() {
-                Some(m) => {
-                    let mut middleware = m.deref().borrow_mut();
-                    middleware.$invoke($interp, $host, $state);
-                }
-                _ => {}
-            }
             if $host.setcode_data.len() > 0 {
                 $host.clear_codedata();
             }
@@ -802,13 +776,6 @@ macro_rules! invoke_middlewares {
 
     ($code: expr, $addr: expr, $host: expr, $state: expr, $invoke: ident) => {
         if $host.middlewares_enabled {
-            match $host.flashloan_middleware.clone() {
-                Some(m) => {
-                    let mut middleware = m.deref().borrow_mut();
-                    middleware.$invoke($code, $addr, $host, $state);
-                }
-                _ => {}
-            }
             if $host.setcode_data.len() > 0 {
                 $host.clear_codedata();
             }

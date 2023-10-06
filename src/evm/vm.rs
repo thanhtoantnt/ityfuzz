@@ -16,7 +16,6 @@ use std::rc::Rc;
 
 use std::sync::Arc;
 
-use crate::evm::types::{float_scale_to_u512, EVMU512};
 use crate::input::{ConciseSerde, VMInputT};
 use crate::state_input::StagedVMState;
 use bytes::Bytes;
@@ -41,7 +40,6 @@ use crate::evm::host::{
 };
 use crate::evm::input::{ConciseEVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::Middleware;
-use crate::evm::onchain::flashloan::FlashloanData;
 use crate::evm::types::{EVMAddress, EVMU256};
 
 use crate::generic_vm::vm_executor::{ExecutionResult, GenericVM, MAP_SIZE};
@@ -233,12 +231,6 @@ pub struct EVMState {
     /// on the incomplete state (i.e., double+ reentrancy)
     pub post_execution: Vec<PostExecutionCtx>,
 
-    /// Flashloan information
-    /// (e.g., how much flashloan is taken, and how much tokens are liquidated)
-    #[serde(skip)]
-    pub flashloan_data: FlashloanData,
-
-    /// Is bug() call in Solidity hit?
     #[serde(skip)]
     pub bug_hit: bool,
     /// selftdestruct() call in Solidity hit?
@@ -323,10 +315,7 @@ impl VMStateT for EVMState {
     /// Get flashloan information
     #[cfg(feature = "full_trace")]
     fn get_flashloan(&self) -> String {
-        format!(
-            "earned: {:?}, owed: {:?}",
-            self.flashloan_data.earned, self.flashloan_data.owed
-        )
+        format!("earned",)
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -352,7 +341,6 @@ impl EVMState {
         Self {
             state: HashMap::new(),
             post_execution: vec![],
-            flashloan_data: FlashloanData::new(),
             bug_hit: false,
             self_destruct: Default::default(),
             typed_bug: Default::default(),
@@ -559,7 +547,7 @@ where
         }
 
         // Build the result
-        let mut result = IntermediateExecutionResult {
+        let result = IntermediateExecutionResult {
             output: interp.return_value(),
             new_state: self.host.evmstate.clone(),
             pc: interp.program_counter(),
@@ -568,18 +556,12 @@ where
             memory: interp.memory.data().clone(),
         };
 
-        // [todo] remove this
         unsafe {
             if self.host.coverage_changed {
                 COVERAGE_NOT_CHANGED = 0;
             } else {
                 COVERAGE_NOT_CHANGED += 1;
             }
-        }
-
-        {
-            result.new_state.flashloan_data.owed +=
-                EVMU512::from(call_ctx.apparent_value) * float_scale_to_u512(1.0, 5);
         }
 
         result
@@ -851,84 +833,6 @@ where
         state: &mut S,
     ) -> ExecutionResult<EVMAddress, VS, Vec<u8>, CI> {
         self.execute_abi(input, state)
-    }
-
-    /// Execute an input (can be transaction or borrow)
-    #[cfg(feature = "flashloan_v2")]
-    fn execute(
-        &mut self,
-        input: &I,
-        state: &mut S,
-    ) -> ExecutionResult<EVMAddress, EVMAddress, VS, Vec<u8>, CI> {
-        match input.get_input_type() {
-            // buy (borrow because we have infinite ETH) tokens with ETH using uniswap
-            EVMInputTy::Borrow => {
-                let token = input.get_contract();
-
-                let path_idx = input.get_randomness()[0] as usize;
-                // generate the call to uniswap router for buying tokens using ETH
-                let call_info = generate_uniswap_router_call(
-                    get_token_ctx!(
-                        self.host
-                            .flashloan_middleware
-                            .as_ref()
-                            .unwrap()
-                            .deref()
-                            .borrow(),
-                        token
-                    ),
-                    path_idx,
-                    input.get_txn_value().unwrap(),
-                    input.get_caller(),
-                );
-                // execute the transaction to get the state with the token borrowed
-                match call_info {
-                    Some((abi, value, target)) => {
-                        let bys = abi.get_bytes();
-                        let mut res = self.fast_call(
-                            target,
-                            Bytes::from(bys),
-                            input.get_state(),
-                            state,
-                            value,
-                            input.get_caller(),
-                        );
-                        #[cfg(feature = "flashloan_v2")]
-                        match self.host.flashloan_middleware {
-                            Some(ref m) => m
-                                .deref()
-                                .borrow_mut()
-                                .analyze_call(input, &mut res.new_state.flashloan_data),
-                            None => (),
-                        }
-                        unsafe {
-                            ExecutionResult {
-                                output: res.output.to_vec(),
-                                reverted: !is_call_success!(res.ret),
-                                new_state: StagedVMState::new_with_state(
-                                    VMStateT::as_any(&mut res.new_state)
-                                        .downcast_ref_unchecked::<VS>()
-                                        .clone(),
-                                ),
-                                additional_info: None,
-                            }
-                        }
-                    }
-                    None => ExecutionResult {
-                        // we don't have enough liquidity to buy the token
-                        output: vec![],
-                        reverted: false,
-                        new_state: StagedVMState::new_with_state(input.get_state().clone()),
-                        additional_info: None,
-                    },
-                }
-            }
-            EVMInputTy::Liquidate => {
-                unreachable!("liquidate should be handled by middleware");
-            }
-            EVMInputTy::ABI => self.execute_abi(input, state),
-            EVMInputTy::ArbitraryCallBoundedAddr => self.execute_abi(input, state),
-        }
     }
 
     /// Execute a static call

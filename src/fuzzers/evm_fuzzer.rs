@@ -2,19 +2,14 @@ use crate::{
     evm::{
         abi::ABIAddressToInstanceMap,
         blaz::builder::ArtifactInfoMetadata,
-        concolic::concolic_stage::{ConcolicFeedbackWrapper, ConcolicStage},
+        concolic::concolic_stage::ConcolicFeedbackWrapper,
         config::Config,
         contract_utils::FIX_DEPLOYER,
         corpus_initializer::EVMCorpusInitializer,
-        cov_stage::CoverageStage,
         feedbacks::Sha3WrappedFeedback,
-        host::{
-            FuzzHost, ACTIVE_MATCH_EXT_CALL, CMP_MAP, JMP_MAP, READ_MAP, WRITE_MAP,
-            WRITE_RELATIONSHIPS,
-        },
+        host::{FuzzHost, ACTIVE_MATCH_EXT_CALL, JMP_MAP, WRITE_RELATIONSHIPS},
         input::{ConciseEVMInput, EVMInput},
         middlewares::{
-            call_printer::CallPrinter,
             coverage::Coverage,
             middleware::Middleware,
             sha3_bypass::{Sha3Bypass, Sha3TaintAnalysis},
@@ -26,7 +21,7 @@ use crate::{
         vm::{EVMExecutor, EVMState},
     },
     executor::FuzzExecutor,
-    feedback::{CmpFeedback, DataflowFeedback, OracleFeedback},
+    feedback::OracleFeedback,
     fuzzer::{ItyFuzzer, REPLAY},
     oracle::BugMetadata,
     scheduler::SortedDroppingScheduler,
@@ -69,9 +64,6 @@ pub fn evm_fuzzer(
     let mut scheduler = QueueScheduler::new();
 
     let jmps = unsafe { &mut JMP_MAP };
-    let cmps = unsafe { &mut CMP_MAP };
-    let reads = unsafe { &mut READ_MAP };
-    let writes = unsafe { &mut WRITE_MAP };
     let jmp_observer = StdMapObserver::new("jmp", jmps);
 
     let deployer = fixed_address(FIX_DEPLOYER);
@@ -163,32 +155,14 @@ pub fn evm_fuzzer(
     let mut feedback = MaxMapFeedback::new(&jmp_observer);
     feedback.init_state(state).expect("Failed to init state");
 
-    let concolic_stage = ConcolicStage::new(
-        config.concolic,
-        config.concolic_caller,
-        evm_executor_ref.clone(),
-    );
     let mutator: EVMFuzzMutator<'_> = FuzzMutator::new(&infant_scheduler);
 
     let std_stage = StdMutationalStage::new(mutator);
 
-    let call_printer_mid = Rc::new(RefCell::new(CallPrinter::new(
-        artifacts.address_to_name.clone(),
-        artifacts.address_to_sourcemap.clone(),
-    )));
-
-    let coverage_obs_stage = CoverageStage::new(
-        evm_executor_ref.clone(),
-        cov_middleware.clone(),
-        call_printer_mid.clone(),
-        config.work_dir.clone(),
-    );
-
-    let mut stages = tuple_list!(std_stage, concolic_stage, coverage_obs_stage);
+    let mut stages = tuple_list!(std_stage);
     let mut executor = FuzzExecutor::new(evm_executor_ref.clone(), tuple_list!(jmp_observer));
 
-    let infant_feedback = CmpFeedback::new(cmps, &infant_scheduler, evm_executor_ref.clone());
-    let infant_result_feedback = DataflowFeedback::new(reads, writes);
+    // let infant_feedback = CmpFeedback::new(cmps, &infant_scheduler, evm_executor_ref.clone());
 
     let mut oracles = config.oracle;
 
@@ -213,8 +187,6 @@ pub fn evm_fuzzer(
         scheduler,
         &infant_scheduler,
         wrapped_feedback,
-        infant_feedback,
-        infant_result_feedback,
         objective,
         config.work_dir,
     );
