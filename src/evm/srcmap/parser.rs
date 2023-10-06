@@ -1,17 +1,14 @@
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use itertools::Itertools;
 
-
-
-use serde::{Deserialize, Serialize};
 use crate::evm::types::{EVMAddress, ProjectSourceMapTy};
+use serde::{Deserialize, Serialize};
 
 pub static mut BASE_PATH: String = String::new();
 
-
-#[derive(Debug,Clone, Serialize, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq)]
 pub struct SourceMapWithCode {
     pub file: String,
     pub line_start: usize,
@@ -23,15 +20,12 @@ impl SourceMapWithCode {
     pub fn to_string(&self) -> String {
         format!(
             "@ {} ({}-{}):\n{}",
-            self.file,
-            self.line_start,
-            self.line_end,
-            self.code
+            self.file, self.line_start, self.line_end, self.code
         )
     }
 }
 
-#[derive(Debug,Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceMapLocation {
     pub file: Option<String>,
     pub file_idx: Option<usize>,
@@ -40,7 +34,12 @@ pub struct SourceMapLocation {
 }
 
 impl SourceMapLocation {
-    pub fn new(file: Option<String>, file_idx: Option<usize>, offset: usize, length: usize) -> Self {
+    pub fn new(
+        file: Option<String>,
+        file_idx: Option<usize>,
+        offset: usize,
+        length: usize,
+    ) -> Self {
         Self {
             file,
             file_idx,
@@ -67,7 +66,10 @@ pub enum SourceMapAvailability {
     Unknown,
 }
 
-fn read_source_code(loc: &SourceMapLocation, file_blob: &Vec<(String, String)>) -> SourceMapWithCode {
+fn read_source_code(
+    loc: &SourceMapLocation,
+    file_blob: &Vec<(String, String)>,
+) -> SourceMapWithCode {
     let file_name = loc.file.clone().unwrap();
     let offset = loc.offset;
     let length = loc.length;
@@ -81,10 +83,13 @@ fn read_source_code(loc: &SourceMapLocation, file_blob: &Vec<(String, String)>) 
     };
 
     if file_blob.len() > 0 && file_blob.iter().any(|(name, _)| name == &file_name) {
-        let (_, code) = file_blob.iter().find(|(name, _)| name == &file_name).unwrap();
+        let (_, code) = file_blob
+            .iter()
+            .find(|(name, _)| name == &file_name)
+            .unwrap();
         contents = code.clone();
     } else {
-        let mut file = match File::open(unsafe {BASE_PATH.clone()} + file_name.as_str()) {
+        let mut file = match File::open(unsafe { BASE_PATH.clone() } + file_name.as_str()) {
             Ok(f) => f,
             Err(_e) => {
                 return bad_file;
@@ -92,7 +97,6 @@ fn read_source_code(loc: &SourceMapLocation, file_blob: &Vec<(String, String)>) 
         };
         file.read_to_string(&mut contents).unwrap();
     }
-
 
     // get starting and ending line number
     let mut line_number = 1;
@@ -115,7 +119,8 @@ fn read_source_code(loc: &SourceMapLocation, file_blob: &Vec<(String, String)>) 
         end_line = line_number;
     }
 
-    let lines_in_range = contents.lines()
+    let lines_in_range = contents
+        .lines()
         .skip(start_line)
         .take(end_line - start_line + 1)
         .join("\n");
@@ -128,31 +133,36 @@ fn read_source_code(loc: &SourceMapLocation, file_blob: &Vec<(String, String)>) 
     };
 }
 
-pub fn pretty_print_source_map(pc: usize, addr: &EVMAddress, data: &ProjectSourceMapTy) -> SourceMapAvailability {
+pub fn pretty_print_source_map(
+    pc: usize,
+    addr: &EVMAddress,
+    data: &ProjectSourceMapTy,
+) -> SourceMapAvailability {
     match data.get(addr) {
-        Some(Some(contract_data)) => {
-            pretty_print_source_map_single(pc, contract_data, &vec![])
-        }
-        _ => SourceMapAvailability::Unavailable
+        Some(Some(contract_data)) => pretty_print_source_map_single(pc, contract_data, &vec![]),
+        _ => SourceMapAvailability::Unavailable,
     }
 }
 
-
-pub fn pretty_print_source_map_single(pc: usize, data: &HashMap<usize, SourceMapLocation>, file_blob: &Vec<(String, String)>) -> SourceMapAvailability {
+pub fn pretty_print_source_map_single(
+    pc: usize,
+    data: &HashMap<usize, SourceMapLocation>,
+    file_blob: &Vec<(String, String)>,
+) -> SourceMapAvailability {
     match data.get(&pc) {
-        Some(info) => {
-            match info.file {
-                Some(ref _file) => {
-                    SourceMapAvailability::Available(read_source_code(info, file_blob))
-                }
-                None => SourceMapAvailability::Unknown
-            }
-        }
-        None => SourceMapAvailability::Unknown
+        Some(info) => match info.file {
+            Some(ref _file) => SourceMapAvailability::Available(read_source_code(info, file_blob)),
+            None => SourceMapAvailability::Unknown,
+        },
+        None => SourceMapAvailability::Unknown,
     }
 }
 
-pub fn uncompress_srcmap_single(map: String, files: &Vec<String>, replacements: &Vec<(String, String)>) -> Vec<SourceMapLocation> {
+pub fn uncompress_srcmap_single(
+    map: String,
+    files: &Vec<String>,
+    replacements: &Vec<(String, String)>,
+) -> Vec<SourceMapLocation> {
     let mut results: Vec<SourceMapLocation> = vec![];
     let replacement_map = replacements
         .iter()
@@ -172,9 +182,7 @@ pub fn uncompress_srcmap_single(map: String, files: &Vec<String>, replacements: 
         let has_everything = has_offset && has_length && has_file && has_jump;
 
         if counter == 0 && !has_everything {
-            results.push(
-                SourceMapLocation::default()
-            );
+            results.push(SourceMapLocation::default());
         } else {
             let mut file_idx = if has_file {
                 let idx = parts[2].parse::<usize>().unwrap_or(usize::MAX);
@@ -210,7 +218,9 @@ pub fn uncompress_srcmap_single(map: String, files: &Vec<String>, replacements: 
             };
 
             if let Some(fidx) = file_idx {
-                if let Some(replacement) = replacement_map.get(&format!("{}:{}:{}", offset, length, fidx)) {
+                if let Some(replacement) =
+                    replacement_map.get(&format!("{}:{}:{}", offset, length, fidx))
+                {
                     let parts = replacement.split(':').collect::<Vec<&str>>();
                     if parts.len() == 3 {
                         file_idx = Some(parts[0].parse::<usize>().unwrap_or(usize::MAX));
@@ -225,15 +235,7 @@ pub fn uncompress_srcmap_single(map: String, files: &Vec<String>, replacements: 
                 }
             }
 
-
-            results.push(
-                SourceMapLocation::new(
-                    file,
-                    file_idx,
-                    offset,
-                    length
-                )
-            )
+            results.push(SourceMapLocation::new(file, file_idx, offset, length))
         }
 
         counter += 1;
@@ -242,7 +244,11 @@ pub fn uncompress_srcmap_single(map: String, files: &Vec<String>, replacements: 
     results
 }
 
-pub fn decode_instructions(bytecode: Vec<u8>, map: String, files: &Vec<String>) -> HashMap<usize, SourceMapLocation> {
+pub fn decode_instructions(
+    bytecode: Vec<u8>,
+    map: String,
+    files: &Vec<String>,
+) -> HashMap<usize, SourceMapLocation> {
     let mut results: HashMap<usize, SourceMapLocation> = Default::default();
     let uncompressed_map = uncompress_srcmap_single(map, files, &vec![]);
     let bytecode_len = bytecode.len();
@@ -260,9 +266,8 @@ pub fn decode_instructions(bytecode: Vec<u8>, map: String, files: &Vec<String>) 
             Some(srcmap) => {
                 results.insert(idx, srcmap.clone());
             }
-            None => { }
+            None => {}
         }
-
 
         match opcode {
             0x60..=0x7f => {
@@ -278,7 +283,12 @@ pub fn decode_instructions(bytecode: Vec<u8>, map: String, files: &Vec<String>) 
     results
 }
 
-pub fn decode_instructions_with_replacement(bytecode: Vec<u8>, replacements: &Vec<(String, String)>, map: String, files: &Vec<String>) -> HashMap<usize, SourceMapLocation> {
+pub fn decode_instructions_with_replacement(
+    bytecode: Vec<u8>,
+    replacements: &Vec<(String, String)>,
+    map: String,
+    files: &Vec<String>,
+) -> HashMap<usize, SourceMapLocation> {
     let mut results: HashMap<usize, SourceMapLocation> = Default::default();
     let uncompressed_map = uncompress_srcmap_single(map, files, replacements);
     let bytecode_len = bytecode.len();
@@ -296,9 +306,8 @@ pub fn decode_instructions_with_replacement(bytecode: Vec<u8>, replacements: &Ve
             Some(srcmap) => {
                 results.insert(idx, srcmap.clone());
             }
-            None => { }
+            None => {}
         }
-
 
         match opcode {
             0x60..=0x7f => {
@@ -314,10 +323,7 @@ pub fn decode_instructions_with_replacement(bytecode: Vec<u8>, replacements: &Ve
     results
 }
 
-
 mod tests {
-    
-
 
     #[test]
     fn test_decode_instruction() {
@@ -335,7 +341,6 @@ mod tests {
                 println!("{}: {:?}", idx, srcmap);
             }
         }
-
     }
 
     #[test]
@@ -355,6 +360,5 @@ mod tests {
                 println!("{}: {:?}", idx, srcmap);
             }
         }
-
     }
 }

@@ -1,21 +1,20 @@
 /// Implementation of the oracle (i.e., invariant checker)
-
 use crate::generic_vm::vm_executor::GenericVM;
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::{ConciseSerde, VMInputT};
 use crate::state::HasExecutionResult;
 
+use libafl::impl_serdeany;
 use libafl::prelude::{HasCorpus, HasMetadata, SerdeAnyMap};
 use libafl::state::State;
 use serde::de::DeserializeOwned;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::rc::Rc;
-use libafl::impl_serdeany;
 
 /// The context passed to the oracle
 pub struct OracleCtx<'a, VS, Addr, Code, By, Loc, SlotTy, Out, I, S: 'static, CI>
@@ -36,7 +35,8 @@ where
     /// The metadata of the oracle
     pub metadata: SerdeAnyMap,
     /// The executor
-    pub executor: &'a mut Rc<RefCell<dyn GenericVM<VS, Code, By, Loc, Addr, SlotTy, Out, I, S, CI>>>,
+    pub executor:
+        &'a mut Rc<RefCell<dyn GenericVM<VS, Code, By, Loc, Addr, SlotTy, Out, I, S, CI>>>,
     /// The input executed by the VM
     pub input: &'a I,
     pub phantom: PhantomData<Addr>,
@@ -57,7 +57,9 @@ where
     pub fn new(
         fuzz_state: &'a mut S,
         pre_state: &'a VS,
-        executor: &'a mut Rc<RefCell<dyn GenericVM<VS, Code, By, Loc, Addr, SlotTy, Out, I, S, CI>>>,
+        executor: &'a mut Rc<
+            RefCell<dyn GenericVM<VS, Code, By, Loc, Addr, SlotTy, Out, I, S, CI>>,
+        >,
         input: &'a I,
     ) -> Self {
         Self {
@@ -73,23 +75,20 @@ where
 
     /// Conduct a batch of static calls on the state before the execution
     pub(crate) fn call_pre_batch(&mut self, data: &Vec<(Addr, By)>) -> Vec<Out> {
-        self.executor.deref().borrow_mut().fast_static_call(
-            data,
-            self.pre_state,
-            self.fuzz_state,
-        )
+        self.executor
+            .deref()
+            .borrow_mut()
+            .fast_static_call(data, self.pre_state, self.fuzz_state)
     }
 
     /// Conduct a batch of static calls on the state after the execution
     pub(crate) fn call_post_batch(&mut self, data: &Vec<(Addr, By)>) -> Vec<Out> {
-        self.executor.deref().borrow_mut().fast_static_call(
-            data,
-            &self.post_state,
-            self.fuzz_state,
-        )
+        self.executor
+            .deref()
+            .borrow_mut()
+            .fast_static_call(data, &self.post_state, self.fuzz_state)
     }
 }
-
 
 /// Producer trait provides functions needed to produce data for the oracle
 pub trait Producer<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, CI>
@@ -133,9 +132,7 @@ where
     ) -> Vec<u64>;
 }
 
-
-
-#[derive(Clone,Debug,Serialize,Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct BugMetadata {
     pub known_bugs: HashSet<u64>,
     pub current_bugs: Vec<u64>,
@@ -148,9 +145,9 @@ impl BugMetadata {
     }
 
     pub fn register_corpus_idx(&mut self, corpus_idx: usize) {
-        self.corpus_idx_to_bug.insert(corpus_idx, self.current_bugs.clone());
+        self.corpus_idx_to_bug
+            .insert(corpus_idx, self.current_bugs.clone());
     }
 }
 
 impl_serdeany!(BugMetadata);
-

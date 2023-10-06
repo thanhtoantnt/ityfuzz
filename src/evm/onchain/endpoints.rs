@@ -13,7 +13,7 @@ use std::hash::{Hash, Hasher};
 use crate::evm::types::{EVMAddress, EVMU256};
 use revm_interpreter::analysis::to_analysed;
 use revm_primitives::bitvec::macros::internal::funty::Integral;
-use revm_primitives::{Bytecode};
+use revm_primitives::Bytecode;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::cell::RefCell;
@@ -27,6 +27,7 @@ use std::time::Duration;
 const MAX_HOPS: u32 = 2; // Assuming the value of MAX_HOPS
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Copy)]
+#[allow(non_camel_case_types)]
 pub enum Chain {
     ETH,
     GOERLI,

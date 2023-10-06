@@ -9,24 +9,24 @@ use move_core_types::language_storage::ModuleId;
 
 use move_core_types::value::MoveTypeLayout;
 
-use move_vm_types::data_store::DataStore;
-use move_vm_types::loaded_data::runtime_types::Type;
-use move_vm_types::values::{Container, ContainerRef, GlobalValue, IndexedRef, Value, ValueImpl};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::any::Any;
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::ops::Index;
+use crate::evm::onchain::endpoints::Chain::POLYGON;
+use crate::r#move::input::StructAbilities;
+use crate::r#move::movevm::TypeTagInfoMeta;
 use libafl::prelude::{HasMetadata, Rand};
 use libafl::state::HasRand;
 use move_binary_format::file_format::AbilitySet;
 use move_core_types::identifier::IdentStr;
 use move_vm_runtime::loader::Resolver;
+use move_vm_types::data_store::DataStore;
+use move_vm_types::loaded_data::runtime_types::Type;
+use move_vm_types::values::{Container, ContainerRef, GlobalValue, IndexedRef, Value, ValueImpl};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::ser::State;
-use crate::evm::onchain::endpoints::Chain::POLYGON;
-use crate::r#move::input::StructAbilities;
-use crate::r#move::movevm::TypeTagInfoMeta;
+use std::any::Any;
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
+use std::ops::Index;
 
 pub trait MoveVMStateT {
     fn values(&self) -> (&HashMap<Type, Vec<(GatedValue, usize)>>);
@@ -34,37 +34,30 @@ pub trait MoveVMStateT {
     /// Called after each time the function is called, we should return all values that are borrowed
     /// as reference / mutable reference from the vm_state.
     fn finished_call<S>(&mut self, state: &mut S)
-        where S: HasMetadata;
+    where
+        S: HasMetadata;
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Gate {
     Ref = 0,
     MutRef = 1,
-    Own = 2
+    Own = 2,
 }
 
 impl Gate {
     pub fn satisfied_by(&self, other: &Self) -> bool {
         match self {
-            Gate::Ref => {
-                true
-            }
-            Gate::MutRef => {
-                *other == Gate::Own || *other == Gate::MutRef
-            }
-            Gate::Own => {
-                *other == Gate::Own
-            }
+            Gate::Ref => true,
+            Gate::MutRef => *other == Gate::Own || *other == Gate::MutRef,
+            Gate::Own => *other == Gate::Own,
         }
     }
 
     pub fn is_ref(&self) -> bool {
         *self == Gate::Ref || *self == Gate::MutRef
     }
-
 }
-
 
 #[derive(Debug, Clone)]
 pub struct GatedValue {
@@ -99,7 +92,9 @@ impl MoveVMStateT for MoveVMState {
     /// Called after each time the function is called, we should return all values that are borrowed
     /// as reference / mutable reference from the vm_state.
     fn finished_call<S>(&mut self, state: &mut S)
-    where S: HasMetadata {
+    where
+        S: HasMetadata,
+    {
         for (t, v) in self.ref_in_use.clone() {
             // we'll clear the ref_in_use vector to save CPU time
             self.restock_args(&t, v, false, state);
@@ -120,12 +115,17 @@ impl MoveVMState {
         }
     }
 
-
     /// Add a new value of struct type to the state
     ///
     /// Checks if the value is already in the state, if it is, it will not be added
     /// but the amount of the value will be increased.
-    pub fn add_new_value<S: HasMetadata>(&mut self, value: GatedValue, ty: &Type, resolver: &Resolver, state: &mut S) -> bool {
+    pub fn add_new_value<S: HasMetadata>(
+        &mut self,
+        value: GatedValue,
+        ty: &Type,
+        resolver: &Resolver,
+        state: &mut S,
+    ) -> bool {
         let gate = value.gate.clone();
         match ty {
             Type::Vector(inner_ty) => {
@@ -135,8 +135,12 @@ impl MoveVMState {
                         added |= self.add_new_value(
                             GatedValue {
                                 v: Value(v.clone()),
-                                gate: gate.clone()
-                            }, &**inner_ty, resolver, state)
+                                gate: gate.clone(),
+                            },
+                            &**inner_ty,
+                            resolver,
+                            state,
+                        )
                     }
                     return added;
                 } else if let Value(ValueImpl::Container(Container::Locals(inner_v))) = &value.v {
@@ -145,15 +149,21 @@ impl MoveVMState {
                         added |= self.add_new_value(
                             GatedValue {
                                 v: Value(v.clone()),
-                                gate: gate.clone()
-                            }, &**inner_ty, resolver, state)
+                                gate: gate.clone(),
+                            },
+                            &**inner_ty,
+                            resolver,
+                            state,
+                        )
                     }
                     return added;
                 }
                 unreachable!("Should not be a vector");
             }
             Type::Struct(_) => {}
-            Type::Reference(_) | Type::MutableReference(_) => unreachable!("Should not be a reference"),
+            Type::Reference(_) | Type::MutableReference(_) => {
+                unreachable!("Should not be a reference")
+            }
             _ => {
                 return false;
             }
@@ -193,14 +203,14 @@ impl MoveVMState {
             state.metadata_mut().insert(StructAbilities::new());
         }
 
-        state.metadata_mut().get_mut::<StructAbilities>().unwrap().set_ability(
-            ty.clone(),
-            abilities,
-        );
+        state
+            .metadata_mut()
+            .get_mut::<StructAbilities>()
+            .unwrap()
+            .set_ability(ty.clone(), abilities);
 
         true
     }
-
 
     /// Randomly sample a value from the state
     ///
@@ -208,7 +218,9 @@ impl MoveVMState {
     ///
     /// When a value is sampled, it will be removed from the state.
     pub fn sample_value<S>(&mut self, state: &mut S, ty: &Type, minimum_gate: &Gate) -> Value
-    where S: HasRand + HasMetadata {
+    where
+        S: HasRand + HasMetadata,
+    {
         match self.values.get_mut(ty) {
             None => None,
             Some(it) => {
@@ -255,7 +267,8 @@ impl MoveVMState {
                     Some(val.v)
                 }
             }
-        }.expect("Cannot sample value from state")
+        }
+        .expect("Cannot sample value from state")
     }
 
     /// Restock a value to the state
@@ -263,13 +276,21 @@ impl MoveVMState {
     /// If the value is a reference, it will be removed from the ref_in_use vector.
     /// Used by mutator when trying to mutate a struct.
     pub fn restock_args<S>(&mut self, ty: &Type, value: GatedValue, is_ref: bool, state: &mut S)
-    where S: HasMetadata {
-        if state.metadata().get::<TypeTagInfoMeta>().unwrap().is_tx_context(ty) {
+    where
+        S: HasMetadata,
+    {
+        if state
+            .metadata()
+            .get::<TypeTagInfoMeta>()
+            .unwrap()
+            .is_tx_context(ty)
+        {
             return;
         }
 
         if is_ref {
-            let offset = self.ref_in_use
+            let offset = self
+                .ref_in_use
                 .iter()
                 .position(|(t, v)| v.equals(&value).unwrap())
                 .expect("Cannot find value in ref_in_use, is this struct not a reference?");
@@ -287,7 +308,10 @@ impl MoveVMState {
         }
 
         let it = self.values.get_mut(ty).unwrap();
-        match it.iter().position(|(val, val_count)| val.equals(&value).unwrap()) {
+        match it
+            .iter()
+            .position(|(val, val_count)| val.equals(&value).unwrap())
+        {
             Some(offset) => {
                 it[offset].1 += 1;
             }
@@ -298,8 +322,15 @@ impl MoveVMState {
     }
 
     pub fn restock_struct<S>(&mut self, ty: &Type, value: Value, ret_ty: &Gate, state: &mut S)
-        where S: HasMetadata {
-        if state.metadata().get::<TypeTagInfoMeta>().unwrap().is_tx_context(ty) {
+    where
+        S: HasMetadata,
+    {
+        if state
+            .metadata()
+            .get::<TypeTagInfoMeta>()
+            .unwrap()
+            .is_tx_context(ty)
+        {
             return;
         }
 
@@ -309,13 +340,13 @@ impl MoveVMState {
         };
 
         if ret_ty.is_ref() {
-            let offset = self.ref_in_use
+            let offset = self
+                .ref_in_use
                 .iter()
                 .position(|(t, v)| v.equals(&value).unwrap())
                 .expect("Cannot find value in ref_in_use, is this struct not a reference?");
             self.ref_in_use.remove(offset);
         }
-
 
         if !ret_ty.is_ref() {
             println!("looking for struct abilities for {:?} {:?}", value, ty);
@@ -332,7 +363,10 @@ impl MoveVMState {
         }
 
         let it = self.values.get_mut(ty).unwrap();
-        match it.iter().position(|(val, val_count)| val.equals(&value).unwrap()) {
+        match it
+            .iter()
+            .position(|(val, val_count)| val.equals(&value).unwrap())
+        {
             Some(offset) => {
                 it[offset].1 += 1;
             }
@@ -429,8 +463,6 @@ impl DataStore for MoveVMState {
         unreachable!("Sui doesn't support load_module");
     }
 
-
-
     fn emit_event(
         &mut self,
         _guid: Vec<u8>,
@@ -453,7 +485,11 @@ impl DataStore for MoveVMState {
         Ok(module_id.clone())
     }
 
-    fn defining_module(&self, module_id: &ModuleId, struct_: &IdentStr) -> PartialVMResult<ModuleId> {
+    fn defining_module(
+        &self,
+        module_id: &ModuleId,
+        struct_: &IdentStr,
+    ) -> PartialVMResult<ModuleId> {
         Ok(module_id.clone())
     }
 
@@ -464,13 +500,11 @@ impl DataStore for MoveVMState {
 
 pub fn value_to_hash(v: &ValueImpl, hasher: &mut DefaultHasher) {
     macro_rules! hash_vec {
-        ($v: expr) => {
-            {
-                let _ = (**$v).borrow().iter().for_each(|inner| {
-                    inner.hash(hasher);
-                });
-            }
-        }
+        ($v: expr) => {{
+            let _ = (**$v).borrow().iter().for_each(|inner| {
+                inner.hash(hasher);
+            });
+        }};
     }
 
     macro_rules! hash_container {
@@ -494,7 +528,7 @@ pub fn value_to_hash(v: &ValueImpl, hasher: &mut DefaultHasher) {
                 Container::VecU8(v) => hash_vec!(v),
                 Container::VecU64(v) => hash_vec!(v),
                 Container::VecU128(v) => hash_vec!(v),
-                Container::VecBool(v)  => hash_vec!(v),
+                Container::VecBool(v) => hash_vec!(v),
                 Container::VecAddress(v) => hash_vec!(v),
                 Container::VecU16(v) => hash_vec!(v),
                 Container::VecU32(v) => hash_vec!(v),
@@ -504,44 +538,62 @@ pub fn value_to_hash(v: &ValueImpl, hasher: &mut DefaultHasher) {
     }
 
     match v {
-        ValueImpl::U8(v) => {(*v).hash(hasher);}
-        ValueImpl::U16(v) => {(*v).hash(hasher);}
-        ValueImpl::U32(v) => {(*v).hash(hasher);}
-        ValueImpl::U64(v) => {(*v).hash(hasher);}
-        ValueImpl::U128(v) => {(*v).hash(hasher);}
-        ValueImpl::U256(v) => {(*v).hash(hasher);}
-        ValueImpl::Bool(v) => {(*v).hash(hasher);}
-        ValueImpl::Address(v) => {(*v).hash(hasher);}
-        ValueImpl::Container(v) => hash_container!(v),
-        ValueImpl::ContainerRef(v) => {
-            match v {
-                ContainerRef::Local(v) => hash_container!(v),
-                ContainerRef::Global { .. } => { unreachable!("not supported") }
-            }
+        ValueImpl::U8(v) => {
+            (*v).hash(hasher);
         }
+        ValueImpl::U16(v) => {
+            (*v).hash(hasher);
+        }
+        ValueImpl::U32(v) => {
+            (*v).hash(hasher);
+        }
+        ValueImpl::U64(v) => {
+            (*v).hash(hasher);
+        }
+        ValueImpl::U128(v) => {
+            (*v).hash(hasher);
+        }
+        ValueImpl::U256(v) => {
+            (*v).hash(hasher);
+        }
+        ValueImpl::Bool(v) => {
+            (*v).hash(hasher);
+        }
+        ValueImpl::Address(v) => {
+            (*v).hash(hasher);
+        }
+        ValueImpl::Container(v) => hash_container!(v),
+        ValueImpl::ContainerRef(v) => match v {
+            ContainerRef::Local(v) => hash_container!(v),
+            ContainerRef::Global { .. } => {
+                unreachable!("not supported")
+            }
+        },
         ValueImpl::IndexedRef(v) => {
             v.idx.hash(hasher);
             match &v.container_ref {
                 ContainerRef::Local(v) => hash_container!(v),
-                ContainerRef::Global { .. } => { unreachable!("not supported") }
+                ContainerRef::Global { .. } => {
+                    unreachable!("not supported")
+                }
             }
         }
-        _ => {unreachable!("not supported")}
+        _ => {
+            unreachable!("not supported")
+        }
     }
 }
 
 impl VMStateT for MoveVMState {
     fn get_hash(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
-        self.resources
-            .iter()
-            .for_each(|(addr, ty)| {
-                addr.hash(&mut hasher);
-                ty.iter().for_each(|(t, v)| {
-                    t.hash(&mut hasher);
-                    value_to_hash(&v.0, &mut hasher);
-                });
+        self.resources.iter().for_each(|(addr, ty)| {
+            addr.hash(&mut hasher);
+            ty.iter().for_each(|(t, v)| {
+                t.hash(&mut hasher);
+                value_to_hash(&v.0, &mut hasher);
             });
+        });
         self.values.iter().for_each(|(t, v)| {
             t.hash(&mut hasher);
             v.iter().for_each(|(v, amt)| {

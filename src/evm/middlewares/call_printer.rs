@@ -1,10 +1,8 @@
-use std::collections::{HashMap};
-use std::fmt::{Debug};
+use std::collections::HashMap;
+use std::fmt::Debug;
 
 use std::fs::OpenOptions;
 use std::io::Write;
-
-
 
 use bytes::Bytes;
 use itertools::Itertools;
@@ -12,20 +10,20 @@ use libafl::inputs::Input;
 use libafl::prelude::{HasCorpus, HasMetadata, State};
 use revm_interpreter::Interpreter;
 
-use revm_primitives::Bytecode;
-use serde::{Deserialize, Serialize};
 use crate::evm::host::FuzzHost;
 use crate::evm::input::{ConciseEVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::{Middleware, MiddlewareType};
-use crate::evm::srcmap::parser::{SourceMapLocation};
+use crate::evm::srcmap::parser::SourceMapLocation;
+use revm_primitives::Bytecode;
+use serde::{Deserialize, Serialize};
 
+use crate::evm::types::{as_u64, convert_u256_to_h160, EVMAddress, ProjectSourceMapTy, EVMU256};
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
 use crate::state::{HasCaller, HasCurrentInputIdx, HasItyState};
-use crate::evm::types::{as_u64, convert_u256_to_h160, EVMAddress, EVMU256, ProjectSourceMapTy};
 
-use serde_json;
 use crate::evm::blaz::builder::ArtifactInfoMetadata;
+use serde_json;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum CallType {
@@ -33,7 +31,7 @@ pub enum CallType {
     CallCode,
     DelegateCall,
     StaticCall,
-    FirstLevelCall
+    FirstLevelCall,
 }
 
 impl Default for CallType {
@@ -50,12 +48,12 @@ pub struct SingleCall {
     pub input: String,
     pub value: String,
     pub source: Option<SourceMapLocation>,
-    pub results: String
+    pub results: String,
 }
 
 #[derive(Clone, Debug, Serialize, Default, Deserialize)]
 pub struct CallPrinterResult {
-    pub data: Vec<(usize, SingleCall)>
+    pub data: Vec<(usize, SingleCall)>,
 }
 
 #[derive(Clone, Debug)]
@@ -66,7 +64,7 @@ pub struct CallPrinter {
     pub results: CallPrinterResult,
     pub offsets: usize,
 
-    entry: bool
+    entry: bool,
 }
 
 impl CallPrinter {
@@ -80,7 +78,7 @@ impl CallPrinter {
             current_layer: 0,
             results: Default::default(),
             entry: true,
-            offsets: 0
+            offsets: 0,
         }
     }
 
@@ -101,10 +99,17 @@ impl CallPrinter {
     }
 
     pub fn get_trace(&self) -> String {
-        self.results.data.iter().map(|(layer, call)| {
-            let padding = (0..*layer).map(|_| "  ").join("");
-            format!("{}[{} -> {}] ({}) > ({})", padding, call.caller, call.contract, call.input, call.results)
-        }).join("\n")
+        self.results
+            .data
+            .iter()
+            .map(|(layer, call)| {
+                let padding = (0..*layer).map(|_| "  ").join("");
+                format!(
+                    "{}[{} -> {}] ({}) > ({})",
+                    padding, call.caller, call.contract, call.input, call.results
+                )
+            })
+            .join("\n")
     }
 
     pub fn save_trace(&self, path: &str) {
@@ -127,16 +132,18 @@ impl CallPrinter {
     }
 
     fn translate_address(&self, a: EVMAddress) -> String {
-        self.address_to_name.get(&a).unwrap_or(&format!("{:?}", a)).to_string()
+        self.address_to_name
+            .get(&a)
+            .unwrap_or(&format!("{:?}", a))
+            .to_string()
     }
 }
 
-
 impl<I, VS, S> Middleware<VS, I, S> for CallPrinter
-    where
-        I: Input + VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
-        VS: VMStateT,
-        S: State
+where
+    I: Input + VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
+    VS: VMStateT,
+    S: State
         + HasCaller<EVMAddress>
         + HasCorpus<I>
         + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
@@ -154,11 +161,11 @@ impl<I, VS, S> Middleware<VS, I, S> for CallPrinter
         if self.entry {
             self.entry = false;
             let code_address = interp.contract.address;
-            let caller_code = host.code.get(&interp.contract.code_address).map(
-                |code| {
-                    Vec::from(code.bytecode())
-                },
-            ).unwrap_or(vec![]);
+            let caller_code = host
+                .code
+                .get(&interp.contract.code_address)
+                .map(|code| Vec::from(code.bytecode()))
+                .unwrap_or(vec![]);
             self.results.data.push((self.current_layer, SingleCall {
                 call_type: CallType::FirstLevelCall,
                 caller: self.translate_address(interp.contract.caller),
@@ -182,18 +189,8 @@ impl<I, VS, S> Middleware<VS, I, S> for CallPrinter
         }
 
         let (arg_offset, arg_len) = match unsafe { *interp.instruction_pointer } {
-            0xf1 | 0xf2 => {
-                (
-                    interp.stack.peek(3).unwrap(),
-                    interp.stack.peek(4).unwrap(),
-                )
-            }
-            0xf4 | 0xfa => {
-                (
-                    interp.stack.peek(2).unwrap(),
-                    interp.stack.peek(3).unwrap(),
-                )
-            }
+            0xf1 | 0xf2 => (interp.stack.peek(3).unwrap(), interp.stack.peek(4).unwrap()),
+            0xf4 | 0xfa => (interp.stack.peek(2).unwrap(), interp.stack.peek(3).unwrap()),
             _ => {
                 return;
             }
@@ -214,13 +211,11 @@ impl<I, VS, S> Middleware<VS, I, S> for CallPrinter
         let arg_offset = as_u64(arg_offset) as usize;
         let arg_len = as_u64(arg_len) as usize;
 
-
         let arg = if interp.memory.len() < arg_offset + arg_len {
             hex::encode(interp.memory.data[arg_len..].to_vec())
         } else {
             hex::encode(interp.memory.get_slice(arg_offset, arg_len))
         };
-
 
         let caller = interp.contract.address;
         let address = match *interp.instruction_pointer {
@@ -234,17 +229,16 @@ impl<I, VS, S> Middleware<VS, I, S> for CallPrinter
         let value = match *interp.instruction_pointer {
             0xf1 | 0xf2 => interp.stack.peek(2).unwrap(),
             _ => EVMU256::ZERO,
-
         };
 
         let target = convert_u256_to_h160(address);
 
         let caller_code_address = interp.contract.code_address;
-        let caller_code = host.code.get(&interp.contract.code_address).map(
-            |code| {
-                Vec::from(code.bytecode())
-            },
-        ).unwrap_or(vec![]);
+        let caller_code = host
+            .code
+            .get(&interp.contract.code_address)
+            .map(|code| Vec::from(code.bytecode()))
+            .unwrap_or(vec![]);
 
         self.offsets = 0;
         self.results.data.push((self.current_layer, SingleCall {
@@ -274,22 +268,25 @@ impl<I, VS, S> Middleware<VS, I, S> for CallPrinter
         _interp: &mut Interpreter,
         _host: &mut FuzzHost<VS, I, S>,
         _state: &mut S,
-        by: &Bytes
+        by: &Bytes,
     ) {
         self.offsets += 1;
         let l = self.results.data.len();
-        self.results.data[l - self.offsets]
-            .1.results = hex::encode(by);
+        self.results.data[l - self.offsets].1.results = hex::encode(by);
 
         self.current_layer -= 1;
     }
 
-    unsafe fn on_insert(&mut self, _bytecode: &mut Bytecode, _address: EVMAddress, _host: &mut FuzzHost<VS, I, S>, _state: &mut S) {
-
+    unsafe fn on_insert(
+        &mut self,
+        _bytecode: &mut Bytecode,
+        _address: EVMAddress,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
+    ) {
     }
 
     fn get_type(&self) -> MiddlewareType {
         MiddlewareType::CallPrinter
     }
 }
-

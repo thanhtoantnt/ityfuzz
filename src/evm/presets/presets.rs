@@ -1,11 +1,11 @@
 use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
+use crate::evm::types::EVMAddress;
 use crate::evm::vm::EVMExecutor;
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
 use crate::state::HasCaller;
 use libafl::prelude::State;
 use std::fmt::Debug;
-use crate::evm::types::EVMAddress;
 
 pub trait Preset<I, S, VS>
 where

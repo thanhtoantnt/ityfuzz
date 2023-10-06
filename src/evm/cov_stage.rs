@@ -6,16 +6,12 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use itertools::Itertools;
+use libafl::corpus::Corpus;
+use libafl::events::ProgressReporter;
 use libafl::{Error, Evaluator};
-use libafl::corpus::{Corpus};
-use libafl::events::{ProgressReporter};
-
-
 
 use libafl::prelude::{HasMetadata, ObserversTuple, Stage};
 use libafl::state::HasCorpus;
-
-
 
 use crate::evm::host::CALL_UNTIL;
 use crate::evm::input::{ConciseEVMInput, EVMInput};
@@ -26,7 +22,6 @@ use crate::evm::types::{EVMFuzzExecutor, EVMFuzzState, EVMStagedVMState};
 use crate::evm::vm::{EVMExecutor, EVMState};
 
 use crate::generic_vm::vm_executor::GenericVM;
-
 
 use crate::oracle::BugMetadata;
 use crate::state::HasInfantStateState;
@@ -40,7 +35,7 @@ pub struct CoverageStage<OT> {
     pub phantom: std::marker::PhantomData<OT>,
 }
 
-impl <OT> CoverageStage<OT> {
+impl<OT> CoverageStage<OT> {
     pub fn new(
         executor: Rc<RefCell<EVMExecutor<EVMInput, EVMFuzzState, EVMState, ConciseEVMInput>>>,
         coverage: Rc<RefCell<Coverage>>,
@@ -78,32 +73,39 @@ impl <OT> CoverageStage<OT> {
 
             return vec![
                 prev,
-                vm_state.trace.transactions.iter().enumerate().map(
-                    |(idx, ci)| {
+                vm_state
+                    .trace
+                    .transactions
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, ci)| {
                         if idx == 0 {
                             ci.to_input(prev_state.clone())
                         } else {
                             ci.to_input(EVMStagedVMState::new_uninitialized())
                         }
-                    }
-                ).collect_vec()
-            ].concat();
+                    })
+                    .collect_vec(),
+            ]
+            .concat();
         }
         vec![]
     }
 }
 
 impl<EM, Z, OT> Stage<EVMFuzzExecutor<OT>, EM, EVMFuzzState, Z> for CoverageStage<OT>
-    where Z: Evaluator<EVMFuzzExecutor<OT>, EM, EVMInput, EVMFuzzState>,
-          EM: ProgressReporter<EVMInput>,
-          OT: ObserversTuple<EVMInput, EVMFuzzState>
+where
+    Z: Evaluator<EVMFuzzExecutor<OT>, EM, EVMInput, EVMFuzzState>,
+    EM: ProgressReporter<EVMInput>,
+    OT: ObserversTuple<EVMInput, EVMFuzzState>,
 {
-    fn perform(&mut self,
-               _fuzzer: &mut Z,
-               _executor: &mut EVMFuzzExecutor<OT>,
-               state: &mut EVMFuzzState,
-               _manager: &mut EM,
-               _corpus_idx: usize
+    fn perform(
+        &mut self,
+        _fuzzer: &mut Z,
+        _executor: &mut EVMFuzzExecutor<OT>,
+        state: &mut EVMFuzzState,
+        _manager: &mut EM,
+        _corpus_idx: usize,
     ) -> Result<(), Error> {
         let total = state.corpus().count();
         if self.last_corpus_idx == total {
@@ -124,18 +126,25 @@ impl<EM, Z, OT> Stage<EVMFuzzExecutor<OT>, EM, EVMFuzzState, Z> for CoverageStag
                 if tx.step {
                     self.call_printer.deref().borrow_mut().mark_step_tx();
                 }
-                unsafe { CALL_UNTIL = call_until; }
+                unsafe {
+                    CALL_UNTIL = call_until;
+                }
                 if !tx.sstate.initialized {
                     tx.sstate = last_state.clone();
                 }
                 let res = exec.execute(&tx, state);
                 last_state = res.new_state.clone();
-                self.call_printer.deref().borrow_mut().mark_new_tx(
-                    last_state.state.post_execution.len()
-                );
+                self.call_printer
+                    .deref()
+                    .borrow_mut()
+                    .mark_new_tx(last_state.state.post_execution.len());
             }
-            unsafe { CALL_UNTIL = u32::MAX; }
-            unsafe { EVAL_COVERAGE = true; }
+            unsafe {
+                CALL_UNTIL = u32::MAX;
+            }
+            unsafe {
+                EVAL_COVERAGE = true;
+            }
 
             {
                 if last_input.step {
@@ -144,23 +153,35 @@ impl<EM, Z, OT> Stage<EVMFuzzExecutor<OT>, EM, EVMFuzzState, Z> for CoverageStag
                 exec.execute(last_input, state);
             }
 
-            self.call_printer.deref().borrow_mut().save_trace(format!("{}/{}", self.trace_dir, i).as_str());
+            self.call_printer
+                .deref()
+                .borrow_mut()
+                .save_trace(format!("{}/{}", self.trace_dir, i).as_str());
             if let Some(bug_idx) = meta.corpus_idx_to_bug.get(&i) {
                 for id in bug_idx {
-                    fs::copy(format!("{}/{}.json", self.trace_dir, i), format!("{}/bug_{}.json", self.trace_dir, id)).unwrap();
+                    fs::copy(
+                        format!("{}/{}.json", self.trace_dir, i),
+                        format!("{}/bug_{}.json", self.trace_dir, id),
+                    )
+                    .unwrap();
                 }
             }
-            unsafe { EVAL_COVERAGE = false; }
+            unsafe {
+                EVAL_COVERAGE = false;
+            }
         }
-        exec.host.remove_middlewares_by_ty(&MiddlewareType::CallPrinter);
+        exec.host
+            .remove_middlewares_by_ty(&MiddlewareType::CallPrinter);
 
         if self.last_corpus_idx == total {
             return Ok(());
         }
 
-        self.coverage.deref().borrow_mut().record_instruction_coverage();
+        self.coverage
+            .deref()
+            .borrow_mut()
+            .record_instruction_coverage();
         self.last_corpus_idx = total;
         Ok(())
     }
 }
-

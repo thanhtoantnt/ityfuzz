@@ -1,7 +1,6 @@
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
 
-
 pub trait VMStateT: Clone + Debug + Default + Serialize + DeserializeOwned {
     fn get_hash(&self) -> u64;
     fn has_post_execution(&self) -> bool;

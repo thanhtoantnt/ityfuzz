@@ -1,12 +1,11 @@
 /// Analysis passes for EVM bytecode
-
 use crate::mutation_utils::ConstantPoolMetadata;
 use libafl::state::{HasMetadata, State};
 
+use crate::evm::bytecode_iterator::all_bytecode;
+use revm_interpreter::opcode::JUMPI;
 use revm_primitives::Bytecode;
 use std::collections::HashSet;
-use revm_interpreter::opcode::JUMPI;
-use crate::evm::bytecode_iterator::all_bytecode;
 
 /// Find all constants in the bytecode by observing PUSH instructions.
 ///

@@ -21,8 +21,19 @@ impl PairProducer {
     }
 }
 
-impl Producer<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8>, EVMInput, EVMFuzzState, ConciseEVMInput>
-    for PairProducer
+impl
+    Producer<
+        EVMState,
+        EVMAddress,
+        Bytecode,
+        Bytes,
+        EVMAddress,
+        EVMU256,
+        Vec<u8>,
+        EVMInput,
+        EVMFuzzState,
+        ConciseEVMInput,
+    > for PairProducer
 {
     fn produce(
         &mut self,
@@ -36,7 +47,7 @@ impl Producer<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8
             Vec<u8>,
             EVMInput,
             EVMFuzzState,
-            ConciseEVMInput
+            ConciseEVMInput,
         >,
     ) {
         #[cfg(feature = "flashloan_v2")]
@@ -49,21 +60,19 @@ impl Producer<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8
                 .flashloan_data
                 .oracle_recheck_reserve
                 .clone();
-            let mut query_reserves_batch = reserves.iter().map(
-                |pair_address| {
-                    (*pair_address, self.fetch_reserve.clone())
-                }
-            ).collect::<Vec<(EVMAddress, Bytes)>>();
+            let mut query_reserves_batch = reserves
+                .iter()
+                .map(|pair_address| (*pair_address, self.fetch_reserve.clone()))
+                .collect::<Vec<(EVMAddress, Bytes)>>();
 
-            ctx.call_post_batch(&query_reserves_batch).iter().zip(
-                reserves.iter()
-            ).for_each(
-                |(output, pair_address)| {
+            ctx.call_post_batch(&query_reserves_batch)
+                .iter()
+                .zip(reserves.iter())
+                .for_each(|(output, pair_address)| {
                     let reserve0 = EVMU256::try_from_be_slice(&output[0..32]).unwrap();
                     let reserve1 = EVMU256::try_from_be_slice(&output[32..64]).unwrap();
                     self.reserves.insert(*pair_address, (reserve0, reserve1));
-                }
-            );
+                });
         }
     }
 
@@ -79,7 +88,7 @@ impl Producer<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8
             Vec<u8>,
             EVMInput,
             EVMFuzzState,
-            ConciseEVMInput
+            ConciseEVMInput,
         >,
     ) {
         self.reserves.clear();

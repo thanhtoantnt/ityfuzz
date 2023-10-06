@@ -22,8 +22,19 @@ impl ERC20Producer {
     }
 }
 
-impl Producer<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8>, EVMInput, EVMFuzzState, ConciseEVMInput>
-    for ERC20Producer
+impl
+    Producer<
+        EVMState,
+        EVMAddress,
+        Bytecode,
+        Bytes,
+        EVMAddress,
+        EVMU256,
+        Vec<u8>,
+        EVMInput,
+        EVMFuzzState,
+        ConciseEVMInput,
+    > for ERC20Producer
 {
     fn produce(
         &mut self,
@@ -37,7 +48,7 @@ impl Producer<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8
             Vec<u8>,
             EVMInput,
             EVMFuzzState,
-            ConciseEVMInput
+            ConciseEVMInput,
         >,
     ) {
         #[cfg(feature = "flashloan_v2")]
@@ -52,18 +63,20 @@ impl Producer<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8
                 .clone();
 
             let callers = ctx.fuzz_state.callers_pool.clone();
-            let query_balance_batch = callers.iter().map(
-                |caller| {
+            let query_balance_batch = callers
+                .iter()
+                .map(|caller| {
                     let mut extended_address = vec![0; 12];
                     extended_address.extend_from_slice(caller.0.as_slice());
-                    let call_data = Bytes::from([self.balance_of.clone(), extended_address].concat());
-                    tokens.iter().map(
-                        |token| {
-                            (*token, call_data.clone())
-                        }
-                    ).collect::<Vec<(EVMAddress, Bytes)>>()
-                }
-            ).flatten().collect::<Vec<(EVMAddress, Bytes)>>();
+                    let call_data =
+                        Bytes::from([self.balance_of.clone(), extended_address].concat());
+                    tokens
+                        .iter()
+                        .map(|token| (*token, call_data.clone()))
+                        .collect::<Vec<(EVMAddress, Bytes)>>()
+                })
+                .flatten()
+                .collect::<Vec<(EVMAddress, Bytes)>>();
             let post_balance_res = ctx.call_post_batch(&query_balance_batch);
             let pre_balance_res = ctx.call_pre_batch(&query_balance_batch);
 
@@ -74,10 +87,13 @@ impl Producer<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8
                     let token = *token;
                     let pre_balance = &pre_balance_res[idx];
                     let post_balance = &post_balance_res[idx];
-                    let prev_balance = EVMU256::try_from_be_slice(pre_balance.as_slice()).unwrap_or(EVMU256::ZERO);
-                    let new_balance = EVMU256::try_from_be_slice(post_balance.as_slice()).unwrap_or(EVMU256::ZERO);
+                    let prev_balance =
+                        EVMU256::try_from_be_slice(pre_balance.as_slice()).unwrap_or(EVMU256::ZERO);
+                    let new_balance = EVMU256::try_from_be_slice(post_balance.as_slice())
+                        .unwrap_or(EVMU256::ZERO);
 
-                    self.balances.insert((*caller, token), (prev_balance, new_balance));
+                    self.balances
+                        .insert((*caller, token), (prev_balance, new_balance));
                     idx += 1;
                 }
             }
@@ -96,7 +112,7 @@ impl Producer<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8
             Vec<u8>,
             EVMInput,
             EVMFuzzState,
-            ConciseEVMInput
+            ConciseEVMInput,
         >,
     ) {
         self.balances.clear();

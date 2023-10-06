@@ -1,16 +1,14 @@
 /// EVM executor implementation
 use itertools::Itertools;
-use std::borrow::{BorrowMut};
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
-use std::cmp::{min};
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 
 use std::collections::hash_map::DefaultHasher;
-use std::fmt::{Debug};
-
+use std::fmt::Debug;
 
 use std::hash::{Hash, Hasher};
-
 
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -28,24 +26,22 @@ use libafl::prelude::{HasMetadata, HasRand};
 
 use libafl::state::{HasCorpus, State};
 
-
-
-
-
-use revm_interpreter::{BytecodeLocked, CallContext, CallScheme, Contract, Gas, InstructionResult, Interpreter, Memory, Stack};
-use revm_interpreter::InstructionResult::{ControlLeak};
-use revm_primitives::{Bytecode};
+use revm_interpreter::InstructionResult::ControlLeak;
+use revm_interpreter::{
+    BytecodeLocked, CallContext, CallScheme, Contract, Gas, InstructionResult, Interpreter, Memory,
+    Stack,
+};
+use revm_primitives::Bytecode;
 
 use core::ops::Range;
 use std::any::Any;
 
 use crate::evm::bytecode_analyzer;
 use crate::evm::host::{
-    FuzzHost, CMP_MAP, COVERAGE_NOT_CHANGED, JMP_MAP, READ_MAP, STATE_CHANGE,
-    WRITE_MAP,
+    FuzzHost, CMP_MAP, COVERAGE_NOT_CHANGED, JMP_MAP, READ_MAP, STATE_CHANGE, WRITE_MAP,
 };
 use crate::evm::input::{ConciseEVMInput, EVMInputT};
-use crate::evm::middlewares::middleware::{Middleware};
+use crate::evm::middlewares::middleware::Middleware;
 use crate::evm::onchain::flashloan::FlashloanData;
 use crate::evm::types::{EVMAddress, EVMU256};
 
@@ -53,9 +49,9 @@ use crate::generic_vm::vm_executor::{ExecutionResult, GenericVM, MAP_SIZE};
 use crate::generic_vm::vm_state::VMStateT;
 use crate::invoke_middlewares;
 
+use crate::evm::vm::Constraint::{NoLiquidation, Value};
 use crate::state::{HasCaller, HasCurrentInputIdx, HasItyState};
 use serde::de::DeserializeOwned;
-use crate::evm::vm::Constraint::{NoLiquidation, Value};
 use serde::{Deserialize, Serialize};
 
 pub const MEM_LIMIT: u64 = 10 * 1024;
@@ -752,14 +748,22 @@ where
                     pes: leak_ctx,
                     must_step: match r.ret {
                         ControlLeak => false,
-                        InstructionResult::ArbitraryExternalCallAddressBounded(_, _,_) => true,
+                        InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _) => true,
                         _ => unreachable!(),
                     },
 
                     constraints: match r.ret {
                         ControlLeak => vec![],
-                        InstructionResult::ArbitraryExternalCallAddressBounded(caller, target, value) => {
-                            vec![Constraint::Caller(caller), Constraint::Contract(target), Value(value), NoLiquidation,
+                        InstructionResult::ArbitraryExternalCallAddressBounded(
+                            caller,
+                            target,
+                            value,
+                        ) => {
+                            vec![
+                                Constraint::Caller(caller),
+                                Constraint::Contract(target),
+                                Value(value),
+                                NoLiquidation,
                             ]
                         }
                         _ => unreachable!(),
@@ -784,9 +788,11 @@ where
                 .chain(self.host.current_self_destructs.iter().cloned()),
         );
         r.new_state.arbitrary_calls = HashSet::from_iter(
-            vm_state.arbitrary_calls.iter().cloned().chain(
-                self.host.current_arbitrary_calls.iter().cloned()
-            )
+            vm_state
+                .arbitrary_calls
+                .iter()
+                .cloned()
+                .chain(self.host.current_arbitrary_calls.iter().cloned()),
         );
 
         // println!("r.ret: {:?}", r.ret);
@@ -799,7 +805,7 @@ where
                     | InstructionResult::Stop
                     | InstructionResult::ControlLeak
                     | InstructionResult::SelfDestruct
-                    | InstructionResult::ArbitraryExternalCallAddressBounded(_, _,_ ) => false,
+                    | InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _) => false,
                     _ => true,
                 },
                 new_state: StagedVMState::new_with_state(
@@ -1064,21 +1070,6 @@ where
 }
 
 mod tests {
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 
     #[test]
     fn test_fuzz_executor() {

@@ -34,8 +34,19 @@ impl FunctionHarnessOracle {
     }
 }
 
-impl Oracle<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8>, EVMInput, EVMFuzzState, ConciseEVMInput>
-    for FunctionHarnessOracle
+impl
+    Oracle<
+        EVMState,
+        EVMAddress,
+        Bytecode,
+        Bytes,
+        EVMAddress,
+        EVMU256,
+        Vec<u8>,
+        EVMInput,
+        EVMFuzzState,
+        ConciseEVMInput,
+    > for FunctionHarnessOracle
 {
     fn transition(&self, ctx: &mut EVMOracleCtx<'_>, stage: u64) -> u64 {
         (self.precondition)(ctx, stage)
@@ -53,23 +64,23 @@ impl Oracle<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8>,
             Vec<u8>,
             EVMInput,
             EVMFuzzState,
-            ConciseEVMInput
+            ConciseEVMInput,
         >,
         _stage: u64,
     ) -> Vec<u64> {
-            let _harness_txn = Bytes::from(self.harness_func.clone());
-            // let res = ctx
-            //     .call_post(
-            //         if self.address.is_zero() {
-            //             ctx.input.contract
-            //         } else {
-            //             self.address
-            //         },
-            //         ctx.input.caller,
-            //         harness_txn,
-            //     )
-            //     .output;
-            // !res.iter().map(|x| *x == 0).all(|x| x)
-            unimplemented!()
+        let _harness_txn = Bytes::from(self.harness_func.clone());
+        // let res = ctx
+        //     .call_post(
+        //         if self.address.is_zero() {
+        //             ctx.input.contract
+        //         } else {
+        //             self.address
+        //         },
+        //         ctx.input.caller,
+        //         harness_txn,
+        //     )
+        //     .output;
+        // !res.iter().map(|x| *x == 0).all(|x| x)
+        unimplemented!()
     }
 }

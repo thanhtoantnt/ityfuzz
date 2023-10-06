@@ -1,25 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #[cfg(feature = "sui_support")]
 use crate::r#move::corpus_initializer::MoveCorpusInitializer;
 #[cfg(feature = "sui_support")]
@@ -37,7 +15,6 @@ use crate::r#move::types::MoveFuzzState;
 #[cfg(feature = "sui_support")]
 use crate::scheduler::SortedDroppingScheduler;
 
-
 pub struct MoveFuzzConfig {
     pub target: String,
     pub work_dir: String,
@@ -47,9 +24,7 @@ pub struct MoveFuzzConfig {
 pub static mut MOVE_ENABLED: bool = cfg!(feature = "move_support");
 
 #[cfg(feature = "sui_support")]
-pub fn move_fuzzer(
-    config: &MoveFuzzConfig,
-) {
+pub fn move_fuzzer(config: &MoveFuzzConfig) {
     let mut state: MoveFuzzState = FuzzState::new(config.seed);
     let mut vm: MoveVM<MoveFunctionInput, MoveFuzzState> = MoveVM::new();
     let monitor = SimpleMonitor::new(|s| println!("{}", s));
@@ -63,20 +38,15 @@ pub fn move_fuzzer(
     };
 
     {
-        MoveCorpusInitializer::new(
-            &mut state,
-            &mut vm,
-            &scheduler,
-            &infant_scheduler,
-        ).setup(vec![config.target.clone()]);
+        MoveCorpusInitializer::new(&mut state, &mut vm, &scheduler, &infant_scheduler)
+            .setup(vec![config.target.clone()]);
     }
 
     let vm_ref = Rc::new(RefCell::new(vm));
 
     let jmp_observer = StdMapObserver::new("jmp", vm_ref.borrow().get_jmp());
-    let mut feedback:
-        MapFeedback<MoveFunctionInput, _, _, _, MoveFuzzState, _>
-        = MaxMapFeedback::new(&jmp_observer);
+    let mut feedback: MapFeedback<MoveFunctionInput, _, _, _, MoveFuzzState, _> =
+        MaxMapFeedback::new(&jmp_observer);
     feedback
         .init_state(&mut state)
         .expect("Failed to init state");
@@ -88,16 +58,16 @@ pub fn move_fuzzer(
 
     let mut executor = FuzzExecutor::new(vm_ref.clone(), tuple_list!(jmp_observer));
 
-    let infant_feedback = CmpFeedback::new(vm_ref.borrow().get_cmp(), &infant_scheduler, vm_ref.clone());
-    let infant_result_feedback = DataflowFeedback::new(vm_ref.borrow().get_read(), vm_ref.borrow().get_write());
+    let infant_feedback =
+        CmpFeedback::new(vm_ref.borrow().get_cmp(), &infant_scheduler, vm_ref.clone());
+    let infant_result_feedback =
+        DataflowFeedback::new(vm_ref.borrow().get_read(), vm_ref.borrow().get_write());
 
-    let mut oracles: Vec<Rc<RefCell<dyn Oracle<_, _, _, _, _, _, _, _, _, _>>>> = vec![
-        Rc::new(RefCell::new(TypedBugOracle::new()))
-    ];
+    let mut oracles: Vec<Rc<RefCell<dyn Oracle<_, _, _, _, _, _, _, _, _, _>>>> =
+        vec![Rc::new(RefCell::new(TypedBugOracle::new()))];
     let mut producers = vec![];
 
     let objective = OracleFeedback::new(&mut oracles, &mut producers, vm_ref.clone());
-
 
     //
     let mut fuzzer = ItyFuzzer::new(
@@ -114,10 +84,7 @@ pub fn move_fuzzer(
         .expect("Fuzzing failed");
 }
 
-
 #[cfg(not(feature = "sui_support"))]
-pub fn move_fuzzer(
-    _config: &MoveFuzzConfig,
-) {
+pub fn move_fuzzer(_config: &MoveFuzzConfig) {
     panic!("Move fuzzer is not enabled");
 }

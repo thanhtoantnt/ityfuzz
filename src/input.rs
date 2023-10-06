@@ -1,5 +1,4 @@
 /// Defines trait for VM inputs that are sent to any smart contract VM
-
 use std::any;
 use std::fmt::Debug;
 
@@ -14,10 +13,10 @@ use crate::evm::abi::BoxedABI;
 use crate::generic_vm::vm_state::VMStateT;
 use crate::state::{HasCaller, HasItyState};
 
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 use crate::evm::types::EVMU256;
 use crate::generic_vm::vm_executor::ExecutionResult;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 /// A trait for VM inputs that are sent to any smart contract VM
 pub trait VMInputT<VS, Loc, Addr, CI>:
@@ -26,7 +25,7 @@ where
     VS: Default + VMStateT,
     Addr: Debug + Clone + Serialize + DeserializeOwned,
     Loc: Debug + Clone + Serialize + DeserializeOwned,
-    CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde
+    CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// Mutate the input
     fn mutate<S>(&mut self, state: &mut S) -> MutationResult
@@ -74,7 +73,6 @@ where
 
     /// Determine whether a input is better than another
     fn fav_factor(&self) -> f64;
-
 
     ///// EVM Specific!! ////
     // TODO: Move these to a separate trait

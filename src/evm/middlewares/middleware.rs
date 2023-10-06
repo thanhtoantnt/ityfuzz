@@ -15,10 +15,10 @@ use serde::{Deserialize, Serialize};
 use std::clone::Clone;
 use std::fmt::Debug;
 
-use std::time::Duration;
+use crate::evm::types::{EVMAddress, EVMU256};
 use revm_interpreter::Interpreter;
 use revm_primitives::Bytecode;
-use crate::evm::types::{EVMAddress, EVMU256};
+use std::time::Duration;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Serialize, Deserialize, Copy)]
 pub enum MiddlewareType {
@@ -99,13 +99,16 @@ where
         _interp: &mut Interpreter,
         _host: &mut FuzzHost<VS, I, S>,
         _state: &mut S,
-        _ret: &Bytes
-    ) {}
+        _ret: &Bytes,
+    ) {
+    }
 
-    unsafe fn on_insert(&mut self,
-                        bytecode: &mut Bytecode,
-                        address: EVMAddress,
-                        host: &mut FuzzHost<VS, I, S>,
-                        state: &mut S);
+    unsafe fn on_insert(
+        &mut self,
+        bytecode: &mut Bytecode,
+        address: EVMAddress,
+        host: &mut FuzzHost<VS, I, S>,
+        state: &mut S,
+    );
     fn get_type(&self) -> MiddlewareType;
 }

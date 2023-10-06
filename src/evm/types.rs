@@ -1,29 +1,41 @@
-use std::collections::HashMap;
 /// Common generic types for EVM fuzzing
 use crate::evm::input::{ConciseEVMInput, EVMInput};
 use crate::evm::mutator::FuzzMutator;
 use crate::evm::vm::EVMState;
+use std::collections::HashMap;
 
+use crate::evm::srcmap::parser::SourceMapLocation;
+use crate::executor::FuzzExecutor;
+use crate::generic_vm::vm_executor::ExecutionResult;
 use crate::oracle::OracleCtx;
 use crate::scheduler::SortedDroppingScheduler;
 use crate::state::{FuzzState, InfantStateState};
 use crate::state_input::StagedVMState;
 use bytes::Bytes;
-use libafl::prelude::{HasRand, RomuDuoJrRand};
-use primitive_types::{H160};
-use revm_primitives::{B160, Bytecode, U256};
 use libafl::prelude::Rand;
+use libafl::prelude::{HasRand, RomuDuoJrRand};
+use primitive_types::H160;
 use revm_primitives::ruint::aliases::U512;
-use crate::evm::srcmap::parser::SourceMapLocation;
-use crate::executor::FuzzExecutor;
-use crate::generic_vm::vm_executor::ExecutionResult;
+use revm_primitives::{Bytecode, B160, U256};
 
 pub type EVMAddress = B160;
 pub type EVMU256 = U256;
 pub type EVMU512 = U512;
-pub type EVMFuzzState = FuzzState<EVMInput, EVMState, EVMAddress, EVMAddress, Vec<u8>, ConciseEVMInput>;
-pub type EVMOracleCtx<'a> =
-    OracleCtx<'a, EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8>, EVMInput, EVMFuzzState, ConciseEVMInput>;
+pub type EVMFuzzState =
+    FuzzState<EVMInput, EVMState, EVMAddress, EVMAddress, Vec<u8>, ConciseEVMInput>;
+pub type EVMOracleCtx<'a> = OracleCtx<
+    'a,
+    EVMState,
+    EVMAddress,
+    Bytecode,
+    Bytes,
+    EVMAddress,
+    EVMU256,
+    Vec<u8>,
+    EVMInput,
+    EVMFuzzState,
+    ConciseEVMInput,
+>;
 pub type EVMFuzzMutator<'a> = FuzzMutator<
     'a,
     EVMState,
@@ -33,18 +45,31 @@ pub type EVMFuzzMutator<'a> = FuzzMutator<
         StagedVMState<EVMAddress, EVMAddress, EVMState, ConciseEVMInput>,
         InfantStateState<EVMAddress, EVMAddress, EVMState, ConciseEVMInput>,
     >,
-    ConciseEVMInput
+    ConciseEVMInput,
 >;
 
 pub type EVMInfantStateState = InfantStateState<EVMAddress, EVMAddress, EVMState, ConciseEVMInput>;
 
 pub type EVMStagedVMState = StagedVMState<EVMAddress, EVMAddress, EVMState, ConciseEVMInput>;
 
-pub type EVMExecutionResult = ExecutionResult<EVMAddress, EVMAddress, EVMState, Vec<u8>, ConciseEVMInput>;
+pub type EVMExecutionResult =
+    ExecutionResult<EVMAddress, EVMAddress, EVMState, Vec<u8>, ConciseEVMInput>;
 
 pub type ProjectSourceMapTy = HashMap<EVMAddress, Option<HashMap<usize, SourceMapLocation>>>;
 
-pub type EVMFuzzExecutor<OT> = FuzzExecutor<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8>, EVMInput, EVMFuzzState, OT, ConciseEVMInput>;
+pub type EVMFuzzExecutor<OT> = FuzzExecutor<
+    EVMState,
+    EVMAddress,
+    Bytecode,
+    Bytes,
+    EVMAddress,
+    EVMU256,
+    Vec<u8>,
+    EVMInput,
+    EVMFuzzState,
+    OT,
+    ConciseEVMInput,
+>;
 
 /// convert array of 20x u8 to H160
 pub fn convert_H160(v: [u8; 20]) -> H160 {
@@ -68,7 +93,10 @@ pub fn float_scale_to_u512(v: f64, decimals: u32) -> U512 {
 }
 
 /// Generate a random H160 address.
-pub fn generate_random_address<S>(s: &mut S) -> EVMAddress where S: HasRand{
+pub fn generate_random_address<S>(s: &mut S) -> EVMAddress
+where
+    S: HasRand,
+{
     let mut rand_seed: RomuDuoJrRand = RomuDuoJrRand::with_seed(s.rand_mut().next());
     let address = EVMAddress::random_using(&mut rand_seed);
     address
@@ -86,7 +114,6 @@ pub fn is_zero(v: EVMU256) -> bool {
     v == EVMU256::ZERO
 }
 
-
 /// As u64
 pub fn as_u64(v: EVMU256) -> u64 {
     v.as_limbs()[0]
@@ -100,7 +127,6 @@ pub fn bytes_to_u64(v: &[u8]) -> u64 {
 }
 
 mod tests {
-    
 
     #[test]
     fn test_as_u64() {

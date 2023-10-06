@@ -15,14 +15,13 @@ pub mod fuzzers;
 pub mod generic_vm;
 pub mod indexed_corpus;
 pub mod input;
+pub mod mutation_utils;
 pub mod oracle;
 pub mod scheduler;
 pub mod state;
 pub mod state_input;
 pub mod telemetry;
 pub mod tracer;
-pub mod mutation_utils;
-
 
 #[cfg(feature = "sui_support")]
 pub mod r#move;

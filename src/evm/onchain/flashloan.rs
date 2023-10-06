@@ -7,9 +7,8 @@ use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::CallMiddlewareReturn::ReturnSuccess;
 use crate::evm::middlewares::middleware::{Middleware, MiddlewareOp, MiddlewareType};
 use crate::evm::mutator::AccessPattern;
-use crate::evm::onchain::endpoints::{PriceOracle};
+use crate::evm::onchain::endpoints::PriceOracle;
 
-use revm_interpreter::Interpreter;
 use crate::evm::host::FuzzHost;
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
@@ -21,27 +20,21 @@ use libafl::impl_serdeany;
 use libafl::inputs::Input;
 use libafl::prelude::{HasCorpus, State};
 use libafl::state::{HasMetadata, HasRand};
+use revm_interpreter::Interpreter;
 use serde::{Deserialize, Serialize};
 
 use std::cell::RefCell;
 
-
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-
-
-
-
-
+use crate::evm::types::convert_u256_to_h160;
+use crate::evm::types::float_scale_to_u512;
+use crate::evm::types::{as_u64, EVMAddress, EVMU256, EVMU512};
+use revm_primitives::Bytecode;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::time::Duration;
-use revm_primitives::Bytecode;
-use crate::evm::types::{as_u64, EVMAddress, EVMU256, EVMU512};
-use crate::evm::types::convert_u256_to_h160;
-use crate::evm::types::float_scale_to_u512;
-
 
 macro_rules! scale {
     () => {
@@ -144,7 +137,15 @@ where
 
 impl<VS, I, S> Flashloan<VS, I, S>
 where
-    S: State + HasRand + HasCaller<EVMAddress> + HasCorpus<I> + Debug + Clone + HasMetadata + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput> + 'static,
+    S: State
+        + HasRand
+        + HasCaller<EVMAddress>
+        + HasCorpus<I>
+        + Debug
+        + Clone
+        + HasMetadata
+        + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
+        + 'static,
     I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
     VS: VMStateT,
 {
@@ -189,7 +190,11 @@ where
         return amount * EVMU512::from(eth_price);
     }
 
-    fn calculate_usd_value_from_addr(&mut self, addr: EVMAddress, amount: EVMU256) -> Option<EVMU512> {
+    fn calculate_usd_value_from_addr(
+        &mut self,
+        addr: EVMAddress,
+        amount: EVMU256,
+    ) -> Option<EVMU512> {
         match self.oracle.fetch_token_price(addr) {
             Some(price) => Some(Self::calculate_usd_value(price, amount)),
             _ => None,
@@ -256,7 +261,12 @@ where
     }
 
     #[cfg(feature = "flashloan_v2")]
-    pub fn on_pair_insertion(&mut self, host: &FuzzHost<VS, I, S>, state: &mut S, pair: EVMAddress) {
+    pub fn on_pair_insertion(
+        &mut self,
+        host: &FuzzHost<VS, I, S>,
+        state: &mut S,
+        pair: EVMAddress,
+    ) {
         let slots = host.find_static_call_read_slot(
             pair,
             Bytes::from(vec![0x09, 0x02, 0xf1, 0xac]), // getReserves
@@ -301,7 +311,15 @@ where
 
 impl<VS, I, S> Middleware<VS, I, S> for Flashloan<VS, I, S>
 where
-    S: State +HasRand+ HasCaller<EVMAddress>+ HasMetadata + HasCorpus<I> + Debug + Clone + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput> + 'static,
+    S: State
+        + HasRand
+        + HasCaller<EVMAddress>
+        + HasMetadata
+        + HasCorpus<I>
+        + Debug
+        + Clone
+        + HasItyState<EVMAddress, EVMAddress, VS, ConciseEVMInput>
+        + 'static,
     I: VMInputT<VS, EVMAddress, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
     VS: VMStateT,
 {
@@ -351,7 +369,9 @@ where
         if size < EVMU256::from(4) {
             return;
         }
-        let data = interp.memory.get_slice(as_u64(offset) as usize, as_u64(size) as usize);
+        let data = interp
+            .memory
+            .get_slice(as_u64(offset) as usize, as_u64(size) as usize);
         // println!("Calling address: {:?} {:?}", hex::encode(call_target), hex::encode(data));
 
         macro_rules! make_transfer_call_success {
@@ -456,10 +476,9 @@ where
             return;
         }
 
-
         match *interp.instruction_pointer {
             // detect whether it mutates token balance
-            0xf1 | 0xfa => {},
+            0xf1 | 0xfa => {}
             0x55 => {
                 if self.pair_address.contains(&interp.contract.address) {
                     let key = interp.stack.peek(0).unwrap();
@@ -498,8 +517,13 @@ where
         }
     }
 
-    unsafe fn on_insert(&mut self, _bytecode: &mut Bytecode, _address: EVMAddress, _host: &mut FuzzHost<VS, I, S>, _state: &mut S) {
-
+    unsafe fn on_insert(
+        &mut self,
+        _bytecode: &mut Bytecode,
+        _address: EVMAddress,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
+    ) {
     }
 
     fn get_type(&self) -> MiddlewareType {

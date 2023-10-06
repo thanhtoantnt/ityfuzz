@@ -15,31 +15,32 @@ use libafl::prelude::{Corpus, HasMetadata, Input};
 
 use libafl::state::{HasCorpus, State};
 
-use revm_interpreter::{Interpreter, Host};
+use revm_interpreter::{Host, Interpreter};
 use revm_primitives::{Bytecode, HashMap};
 
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 
-use std::fmt::{Debug};
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::{Add, Mul, Not, Sub};
 use std::sync::Arc;
 
 use itertools::Itertools;
 
-use z3::ast::{Bool, BV};
-use z3::{ast::Ast, Config, Context, Params, Solver};
 use crate::bv_from_u256;
 use crate::evm::concolic::concolic_stage::ConcolicPrioritizationMetadata;
-use crate::evm::concolic::expr::{ConcolicOp, Expr, simplify};
-use crate::evm::types::{as_u64, EVMAddress, EVMU256, is_zero};
+use crate::evm::concolic::expr::{simplify, ConcolicOp, Expr};
+use crate::evm::types::{as_u64, is_zero, EVMAddress, EVMU256};
+use z3::ast::{Bool, BV};
+use z3::{ast::Ast, Config, Context, Params, Solver};
 
 pub static mut CONCOLIC_MAP: [u8; MAP_SIZE] = [0; MAP_SIZE];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Field {
-    Caller, CallDataValue
+    Caller,
+    CallDataValue,
 }
 
 pub struct Solving<'a> {
@@ -49,7 +50,7 @@ pub struct Solving<'a> {
     calldatavalue: &'a BV<'a>,
     caller: &'a BV<'a>,
     constraints: &'a Vec<Box<Expr>>,
-    constrained_field: Vec<Field>
+    constrained_field: Vec<Field>,
 }
 
 impl<'a> Solving<'a> {
@@ -63,20 +64,18 @@ impl<'a> Solving<'a> {
     ) -> Self {
         Solving {
             context,
-            input: (*input).iter().enumerate().map(
-                |(_idx, x)| {
+            input: (*input)
+                .iter()
+                .enumerate()
+                .map(|(_idx, x)| {
                     let bv = match &x.op {
-                        ConcolicOp::SYMBYTE(name) => {
-                            BV::new_const(context, name.clone(), 8)
-                        }
-                        ConcolicOp::CONSTBYTE(val) => {
-                            BV::from_u64(context, *val as u64, 8)
-                        }
+                        ConcolicOp::SYMBYTE(name) => BV::new_const(context, name.clone(), 8),
+                        ConcolicOp::CONSTBYTE(val) => BV::from_u64(context, *val as u64, 8),
                         _ => unreachable!("input should be symbolic or concrete"),
                     };
                     bv
-                }
-            ).collect_vec(),
+                })
+                .collect_vec(),
             balance,
             calldatavalue,
             caller,
@@ -137,53 +136,53 @@ impl<'a> Solving<'a> {
             } else {
                 slice = slice.concat(&self.input[i]);
             }
-
         }
         slice
     }
 
     pub fn generate_z3_bv(&mut self, bv: &Expr, ctx: &'a Context) -> Option<SymbolicTy<'a>> {
         macro_rules! binop {
-            ($lhs:expr, $rhs:expr, $op:ident) => {
-                {
-                    let l = self.generate_z3_bv($lhs.as_ref().unwrap(), ctx);
-                    let r = self.generate_z3_bv($rhs.as_ref().unwrap(), ctx);
+            ($lhs:expr, $rhs:expr, $op:ident) => {{
+                let l = self.generate_z3_bv($lhs.as_ref().unwrap(), ctx);
+                let r = self.generate_z3_bv($rhs.as_ref().unwrap(), ctx);
 
-                    match (l, r) {
-                        (Some(SymbolicTy::BV(l)), Some(SymbolicTy::BV(r))) => Some(SymbolicTy::BV(l.$op(&r))),
-                        _ => None
+                match (l, r) {
+                    (Some(SymbolicTy::BV(l)), Some(SymbolicTy::BV(r))) => {
+                        Some(SymbolicTy::BV(l.$op(&r)))
                     }
+                    _ => None,
                 }
-
-            };
+            }};
         }
         // println!("generate_z3_bv: {:?}", bv);
 
         macro_rules! comparisons2 {
-            ($lhs:expr, $rhs:expr, $op:ident) => {
-                {
-                    let lhs = self.generate_z3_bv($lhs.as_ref().unwrap(), ctx);
-                    let rhs = self.generate_z3_bv($rhs.as_ref().unwrap(), ctx);
-                    match (lhs, rhs) {
-                        (Some(SymbolicTy::BV(lhs)), Some(SymbolicTy::BV(rhs))) => Some(SymbolicTy::Bool(lhs.$op(&rhs))),
-                        (Some(SymbolicTy::Bool(lhs)), Some(SymbolicTy::Bool(rhs))) => Some(SymbolicTy::Bool(lhs.$op(&rhs))),
-                        _ => None
+            ($lhs:expr, $rhs:expr, $op:ident) => {{
+                let lhs = self.generate_z3_bv($lhs.as_ref().unwrap(), ctx);
+                let rhs = self.generate_z3_bv($rhs.as_ref().unwrap(), ctx);
+                match (lhs, rhs) {
+                    (Some(SymbolicTy::BV(lhs)), Some(SymbolicTy::BV(rhs))) => {
+                        Some(SymbolicTy::Bool(lhs.$op(&rhs)))
                     }
+                    (Some(SymbolicTy::Bool(lhs)), Some(SymbolicTy::Bool(rhs))) => {
+                        Some(SymbolicTy::Bool(lhs.$op(&rhs)))
+                    }
+                    _ => None,
                 }
-            };
+            }};
         }
 
         macro_rules! comparisons1 {
-            ($lhs:expr, $rhs:expr, $op:ident) => {
-                {
-                    let lhs = self.generate_z3_bv($lhs.as_ref().unwrap(), ctx);
-                    let rhs = self.generate_z3_bv($rhs.as_ref().unwrap(), ctx);
-                    match (lhs, rhs) {
-                        (Some(SymbolicTy::BV(lhs)), Some(SymbolicTy::BV(rhs))) => Some(SymbolicTy::Bool(lhs.$op(&rhs))),
-                        _ => None,
+            ($lhs:expr, $rhs:expr, $op:ident) => {{
+                let lhs = self.generate_z3_bv($lhs.as_ref().unwrap(), ctx);
+                let rhs = self.generate_z3_bv($rhs.as_ref().unwrap(), ctx);
+                match (lhs, rhs) {
+                    (Some(SymbolicTy::BV(lhs)), Some(SymbolicTy::BV(rhs))) => {
+                        Some(SymbolicTy::Bool(lhs.$op(&rhs)))
                     }
+                    _ => None,
                 }
-            };
+            }};
         }
 
         match &bv.op {
@@ -220,13 +219,13 @@ impl<'a> Solving<'a> {
             ConcolicOp::CALLVALUE => {
                 self.constrained_field.push(Field::CallDataValue);
                 Some(SymbolicTy::BV(self.calldatavalue.clone()))
-            },
+            }
             ConcolicOp::CALLER => {
                 self.constrained_field.push(Field::Caller);
                 Some(SymbolicTy::BV(self.caller.clone()))
-            },
+            }
             ConcolicOp::FINEGRAINEDINPUT(start, end) => {
-                                              Some(SymbolicTy::BV(self.slice_input(*start, *end)))
+                Some(SymbolicTy::BV(self.slice_input(*start, *end)))
             }
             ConcolicOp::LNOT => {
                 let lhs = self.generate_z3_bv(bv.lhs.as_ref().unwrap(), ctx);
@@ -246,12 +245,10 @@ impl<'a> Solving<'a> {
             ConcolicOp::SELECT(high, low) => {
                 let lhs = self.generate_z3_bv(bv.lhs.as_ref().unwrap(), ctx);
                 match lhs {
-                    Some(SymbolicTy::BV(lhs)) => {
-                        Some(SymbolicTy::BV(lhs.extract(*high, *low)))
-                    },
+                    Some(SymbolicTy::BV(lhs)) => Some(SymbolicTy::BV(lhs.extract(*high, *low))),
                     _ => None,
                 }
-            },
+            }
 
             ConcolicOp::CONCAT => {
                 let lhs = self.generate_z3_bv(bv.lhs.as_ref().unwrap(), ctx);
@@ -259,7 +256,7 @@ impl<'a> Solving<'a> {
                 match (lhs, rhs) {
                     (Some(SymbolicTy::BV(lhs)), Some(SymbolicTy::BV(rhs))) => {
                         Some(SymbolicTy::BV(lhs.concat(&rhs)))
-                    },
+                    }
                     _ => None,
                 }
             }
@@ -286,26 +283,21 @@ impl<'a> Solving<'a> {
             }
 
             solver.assert(&match cons.op {
-                ConcolicOp::GT => expect_bv_or_continue!(bv).bvugt(
-                    &expect_bv_or_continue!(self
-                        .generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)),
-                ),
-                ConcolicOp::SGT => expect_bv_or_continue!(bv).bvsgt(
-                    &expect_bv_or_continue!(self
-                        .generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)),
-                ),
-                ConcolicOp::EQ => expect_bv_or_continue!(bv)._eq(
-                    &expect_bv_or_continue!(self
-                        .generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)),
-                ),
-                ConcolicOp::LT => expect_bv_or_continue!(bv).bvult(
-                    &expect_bv_or_continue!(self
-                        .generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)),
-                ),
-                ConcolicOp::SLT => expect_bv_or_continue!(bv).bvslt(
-                    &expect_bv_or_continue!(self
-                        .generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)),
-                ),
+                ConcolicOp::GT => expect_bv_or_continue!(bv).bvugt(&expect_bv_or_continue!(
+                    self.generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)
+                )),
+                ConcolicOp::SGT => expect_bv_or_continue!(bv).bvsgt(&expect_bv_or_continue!(
+                    self.generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)
+                )),
+                ConcolicOp::EQ => expect_bv_or_continue!(bv)._eq(&expect_bv_or_continue!(
+                    self.generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)
+                )),
+                ConcolicOp::LT => expect_bv_or_continue!(bv).bvult(&expect_bv_or_continue!(
+                    self.generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)
+                )),
+                ConcolicOp::SLT => expect_bv_or_continue!(bv).bvslt(&expect_bv_or_continue!(
+                    self.generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)
+                )),
                 ConcolicOp::LNOT => match bv {
                     Some(SymbolicTy::BV(bv)) => bv._eq(&bv_from_u256!(EVMU256::ZERO, &context)),
                     Some(SymbolicTy::Bool(bv)) => bv.not(),
@@ -313,7 +305,7 @@ impl<'a> Solving<'a> {
                         #[cfg(feature = "z3_debug")]
                         println!("Failed to generate Z3 BV for {:?}", bv);
                         continue;
-                    },
+                    }
                 },
                 _ => {
                     #[cfg(feature = "z3_debug")]
@@ -333,18 +325,24 @@ impl<'a> Solving<'a> {
                 let model = solver.get_model().unwrap();
                 #[cfg(feature = "z3_debug")]
                 println!("Model: {:?}", model);
-                let input = self.input
+                let input = self
+                    .input
                     .iter()
-                    .map(|x| format!("{}", model.eval(x, true).unwrap())
-                        .trim_start_matches("#x")
-                        .to_string())
+                    .map(|x| {
+                        format!("{}", model.eval(x, true).unwrap())
+                            .trim_start_matches("#x")
+                            .to_string()
+                    })
                     .collect::<Vec<_>>()
                     .join("");
                 let input_bytes = hex::decode(input.clone()).unwrap();
                 let callvalue = model.eval(self.calldatavalue, true).unwrap().to_string();
-                let callvalue_int = EVMU256::from_str_radix(&callvalue.trim_start_matches("#x"), 16).unwrap();
+                let callvalue_int =
+                    EVMU256::from_str_radix(&callvalue.trim_start_matches("#x"), 16).unwrap();
                 let caller = model.eval(self.caller, true).unwrap().to_string();
-                let caller_addr = EVMAddress::from_slice(&hex::decode(caller.as_str()[26..66].to_string()).unwrap());
+                let caller_addr = EVMAddress::from_slice(
+                    &hex::decode(caller.as_str()[26..66].to_string()).unwrap(),
+                );
                 vec![Solution {
                     input: input_bytes,
                     caller: caller_addr,
@@ -446,7 +444,7 @@ impl SymbolicMemory {
             self.memory[idx + i] = Some(Box::new(Expr {
                 lhs: Some(val.clone()),
                 rhs: None,
-                op: ConcolicOp::SELECT(256 - i_u32*8 - 1, 256 - i_u32*8 - 7 - 1),
+                op: ConcolicOp::SELECT(256 - i_u32 * 8 - 1, 256 - i_u32 * 8 - 7 - 1),
             }));
         }
     }
@@ -480,32 +478,27 @@ impl SymbolicMemory {
         let mut all_bytes = if let Some(by) = self.memory[idx].clone() {
             by
         } else {
-            Box::new(
-                Expr {
-                    lhs: None,
-                    rhs: None,
-                    op: ConcolicOp::CONSTBYTE(0),
-                }
-            )
+            Box::new(Expr {
+                lhs: None,
+                rhs: None,
+                op: ConcolicOp::CONSTBYTE(0),
+            })
         };
         for i in 1..32 {
-            all_bytes = Box::new(
-                Expr {
-                    lhs: Some(all_bytes),
-                    rhs: if let Some(by) = self.memory[idx + i].clone() {
-                        Some(by)
-                    } else {
-                        Some(Box::new(Expr {
-                            lhs: None,
-                            rhs: None,
-                            op: ConcolicOp::CONSTBYTE(0),
-                        }))
-                    },
-                    op: ConcolicOp::CONCAT,
-                }
-            );
+            all_bytes = Box::new(Expr {
+                lhs: Some(all_bytes),
+                rhs: if let Some(by) = self.memory[idx + i].clone() {
+                    Some(by)
+                } else {
+                    Some(Box::new(Expr {
+                        lhs: None,
+                        rhs: None,
+                        op: ConcolicOp::CONSTBYTE(0),
+                    }))
+                },
+                op: ConcolicOp::CONCAT,
+            });
         }
-
 
         Some(simplify(all_bytes))
     }
@@ -572,7 +565,9 @@ impl<I, VS> ConcolicHost<I, VS> {
             symbolic_stack: Vec::new(),
             symbolic_memory: SymbolicMemory::new(),
             symbolic_state: Default::default(),
-            input_bytes: Self::construct_input_from_abi(testcase_ref.get_data_abi().expect("data abi not found")),
+            input_bytes: Self::construct_input_from_abi(
+                testcase_ref.get_data_abi().expect("data abi not found"),
+            ),
             constraints: vec![],
             testcase_ref,
             phantom: Default::default(),
@@ -589,24 +584,13 @@ impl<I, VS> ConcolicHost<I, VS> {
         } else {
             panic!("pop_ctx: ctx is empty");
         }
-
     }
 
     pub fn push_ctx(&mut self, interp: &mut Interpreter) {
         // interp.stack.data()[interp.stack.len() - 1 - $idx]
         let (arg_offset, arg_len) = match unsafe { *interp.instruction_pointer } {
-            0xf1 | 0xf2 => {
-                (
-                    interp.stack.peek(3).unwrap(),
-                    interp.stack.peek(4).unwrap(),
-                )
-            }
-            0xf4 | 0xfa => {
-                (
-                    interp.stack.peek(2).unwrap(),
-                    interp.stack.peek(3).unwrap(),
-                )
-            }
+            0xf1 | 0xf2 => (interp.stack.peek(3).unwrap(), interp.stack.peek(4).unwrap()),
+            0xf4 | 0xfa => (interp.stack.peek(2).unwrap(), interp.stack.peek(3).unwrap()),
             _ => {
                 panic!("not supported opcode");
             }
@@ -655,7 +639,14 @@ impl<I, VS> ConcolicHost<I, VS> {
         let caller = BV::new_const(&context, "caller", 256);
         let balance = BV::new_const(&context, "balance", 256);
 
-        let mut solving = Solving::new(&context, &self.input_bytes, &balance, &callvalue, &caller, &self.constraints);
+        let mut solving = Solving::new(
+            &context,
+            &self.input_bytes,
+            &balance,
+            &callvalue,
+            &caller,
+            &self.constraints,
+        );
         solving.solve()
     }
 
@@ -703,7 +694,7 @@ where
     ) {
         macro_rules! fast_peek {
             ($idx:expr) => {
-                    interp.stack.data()[interp.stack.len() - 1 - $idx]
+                interp.stack.data()[interp.stack.len() - 1 - $idx]
             };
         }
 
@@ -724,42 +715,29 @@ where
             }};
         }
 
-        macro_rules! stack_concrete {
-            ($idx:expr) => {{
-                let real_loc_conc = interp.stack.len() - 1 - $idx;
-                let u256 = interp.stack.peek(real_loc_conc).expect("stack underflow");
-                u256
+        macro_rules! concrete_eval {
+            ($in_cnt: expr, $out_cnt: expr) => {{
+                // println!("[concolic] concrete_eval: {} {}", $in_cnt, $out_cnt);
+                for _ in 0..$in_cnt {
+                    self.symbolic_stack.pop();
+                }
+                vec![None; $out_cnt]
             }};
         }
 
-        macro_rules! concrete_eval {
-            ($in_cnt: expr, $out_cnt: expr) => {
-                {
-                    // println!("[concolic] concrete_eval: {} {}", $in_cnt, $out_cnt);
-                    for _ in 0..$in_cnt {
-                        self.symbolic_stack.pop();
-                    }
-                    vec![None; $out_cnt]
-                }
-            };
-        }
-
         macro_rules! concrete_eval_with_action {
-            ($in_cnt: expr, $out_cnt: expr, $pp: ident) => {
-                {
-                    // println!("[concolic] concrete_eval: {} {}", $in_cnt, $out_cnt);
-                    for _ in 0..$in_cnt {
-                        self.symbolic_stack.pop();
-                    }
-                    for _ in 0..$out_cnt {
-                        self.symbolic_stack.push(None);
-                    }
-                    self.$pp(interp);
-                    vec![]
+            ($in_cnt: expr, $out_cnt: expr, $pp: ident) => {{
+                // println!("[concolic] concrete_eval: {} {}", $in_cnt, $out_cnt);
+                for _ in 0..$in_cnt {
+                    self.symbolic_stack.pop();
                 }
-            };
+                for _ in 0..$out_cnt {
+                    self.symbolic_stack.push(None);
+                }
+                self.$pp(interp);
+                vec![]
+            }};
         }
-
 
         let mut solutions = vec![];
 
@@ -790,7 +768,11 @@ where
         // println!("max_depth simpl: {:?} for {:?}", max_ref.map(|x| simplify(x.clone()).depth()), max_ref.map(|x| simplify(x.clone()).pretty_print_str()));
         #[cfg(feature = "z3_debug")]
         {
-            println!("[concolic] on_step @ {:x}: {:x}", interp.program_counter(), *interp.instruction_pointer);
+            println!(
+                "[concolic] on_step @ {:x}: {:x}",
+                interp.program_counter(),
+                *interp.instruction_pointer
+            );
             println!("[concolic] stack: {:?}", interp.stack);
             println!("[concolic] symbolic_stack: {:?}", self.symbolic_stack);
             for idx in 0..interp.stack.len() {
@@ -1009,7 +991,6 @@ where
             }
             // CALLVALUE
             0x34 => {
-
                 if self.ctxs.len() > 0 {
                     // use concrete caller when inside a call
                     vec![None]
@@ -1025,8 +1006,12 @@ where
                     let offset_usize = as_u64(offset) as usize;
                     #[cfg(feature = "z3_debug")]
                     {
-                        println!("CALLDATALOAD: {:?}", self.get_input_slice_from_ctx(offset_usize, 32));
-                        self.get_input_slice_from_ctx(offset_usize, 32).pretty_print();
+                        println!(
+                            "CALLDATALOAD: {:?}",
+                            self.get_input_slice_from_ctx(offset_usize, 32)
+                        );
+                        self.get_input_slice_from_ctx(offset_usize, 32)
+                            .pretty_print();
                     }
                     vec![Some(self.get_input_slice_from_ctx(offset_usize, 32))]
                 } else {
@@ -1167,11 +1152,7 @@ where
                 // println!("{:?}", self.symbolic_stack);
                 // jump dest in concolic solving mode is the opposite of the concrete
                 let br = is_zero(fast_peek!(1));
-                let intended_jmp_dest = if !br {
-                    1
-                } else {
-                    as_u64(fast_peek!(0))
-                };
+                let intended_jmp_dest = if !br { 1 } else { as_u64(fast_peek!(0)) };
 
                 let real_path_constraint = if br {
                     // path_condition = false
@@ -1185,7 +1166,10 @@ where
                 if JMP_MAP[idx] == 0 && !real_path_constraint.is_concrete() {
                     let intended_path_constraint = real_path_constraint.clone().lnot();
                     #[cfg(feature = "z3_debug")]
-                    println!("[concolic] to solve {:?}", intended_path_constraint.pretty_print_str());
+                    println!(
+                        "[concolic] to solve {:?}",
+                        intended_path_constraint.pretty_print_str()
+                    );
                     self.constraints.push(intended_path_constraint);
 
                     solutions.extend(self.solve());
@@ -1313,12 +1297,14 @@ where
         //     .clone();
 
         if solutions.len() > 0 {
-            let meta = state.metadata_mut().get_mut::<ConcolicPrioritizationMetadata>().expect("Failed to get metadata");
+            let meta = state
+                .metadata_mut()
+                .get_mut::<ConcolicPrioritizationMetadata>()
+                .expect("Failed to get metadata");
             for solution in solutions {
                 meta.solutions.push((solution, self.testcase_ref.clone()));
             }
         }
-
     }
 
     unsafe fn on_return(
@@ -1326,13 +1312,18 @@ where
         _interp: &mut Interpreter,
         _host: &mut FuzzHost<VS, I, S>,
         _state: &mut S,
-        _by: &Bytes
+        _by: &Bytes,
     ) {
         self.pop_ctx();
     }
 
-    unsafe fn on_insert(&mut self, _bytecode: &mut Bytecode, _address: EVMAddress, _host: &mut FuzzHost<VS, I, S>, _state: &mut S) {
-
+    unsafe fn on_insert(
+        &mut self,
+        _bytecode: &mut Bytecode,
+        _address: EVMAddress,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
+    ) {
     }
 
     fn get_type(&self) -> MiddlewareType {

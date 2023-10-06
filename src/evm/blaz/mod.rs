@@ -1,13 +1,12 @@
-use std::time::Duration;
 use bytes::Bytes;
+use std::time::Duration;
 
-
-use revm_primitives::{Bytecode, HashSet};
 use crate::evm::bytecode_analyzer::find_constants;
+use revm_primitives::{Bytecode, HashSet};
 
+use crate::evm::bytecode_iterator::SKIP_CBOR;
 use crate::evm::contract_utils::extract_sig_from_contract;
 use crate::skip_cbor;
-use crate::evm::bytecode_iterator::SKIP_CBOR;
 
 pub mod builder;
 pub mod offchain_artifacts;
@@ -25,12 +24,17 @@ fn get_client() -> reqwest::blocking::Client {
 /// Needle = shorter contract, without constructor args
 pub fn is_bytecode_similar_lax(hay: Vec<u8>, needle: Vec<u8>) -> bool {
     skip_cbor!({
-        let push4_hay: HashSet<_> = extract_sig_from_contract(hex::encode(hay).as_str()).iter().cloned().collect();
-        let push4_needle: HashSet<_> = extract_sig_from_contract(hex::encode(needle).as_str()).iter().cloned().collect();
+        let push4_hay: HashSet<_> = extract_sig_from_contract(hex::encode(hay).as_str())
+            .iter()
+            .cloned()
+            .collect();
+        let push4_needle: HashSet<_> = extract_sig_from_contract(hex::encode(needle).as_str())
+            .iter()
+            .cloned()
+            .collect();
         push4_needle.difference(&push4_hay).count() == 0
     })
 }
-
 
 pub fn is_bytecode_similar_strict_ranking(hay: Vec<u8>, needle: Vec<u8>) -> usize {
     skip_cbor!({
@@ -39,7 +43,6 @@ pub fn is_bytecode_similar_strict_ranking(hay: Vec<u8>, needle: Vec<u8>) -> usiz
         constants_needle.difference(&constants_hay).count()
     })
 }
-
 
 #[cfg(test)]
 mod test {

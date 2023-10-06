@@ -1,6 +1,5 @@
 use crate::evm::input::{ConciseEVMInput, EVMInput};
 
-
 use crate::evm::producers::pair::PairProducer;
 use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx, EVMU256};
 use crate::evm::vm::EVMState;
@@ -11,9 +10,6 @@ use bytes::Bytes;
 use revm_primitives::Bytecode;
 
 use std::cell::RefCell;
-
-
-
 
 use std::rc::Rc;
 

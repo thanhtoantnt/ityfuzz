@@ -1,6 +1,5 @@
 /// Corpus schedulers for ItyFuzz
 /// Used to determine which input / VMState to fuzz next
-
 use libafl::corpus::Corpus;
 use libafl::corpus::Testcase;
 use libafl::prelude::{HasMetadata, HasRand, Input, Rand};
@@ -10,12 +9,8 @@ use libafl::{impl_serdeany, Error};
 
 use serde::{Deserialize, Serialize};
 
-
 use std::collections::HashMap;
 use std::fmt::Debug;
-
-
-
 
 use crate::state::HasParent;
 
@@ -64,12 +59,15 @@ pub struct DependencyTree {
 
 impl DependencyTree {
     pub fn add_node(&mut self, idx: usize, parent: usize) {
-        self.nodes.insert(idx, Node {
-            parent,
-            ref_count: 1,
-            pending_delete: false,
-            never_delete: false,
-        });
+        self.nodes.insert(
+            idx,
+            Node {
+                parent,
+                ref_count: 1,
+                pending_delete: false,
+                never_delete: false,
+            },
+        );
         let mut parent = parent;
         while parent != 0 {
             let node = self.nodes.get_mut(&parent).unwrap();
@@ -140,15 +138,17 @@ pub struct VoteData {
 }
 
 pub trait HasReportCorpus<S>
-    where S: HasMetadata {
+where
+    S: HasMetadata,
+{
     fn report_corpus(&self, state: &mut S, state_idx: usize);
     fn sponsor_state(&self, state: &mut S, state_idx: usize, amt: usize);
 }
 
 impl<I, S> HasReportCorpus<S> for SortedDroppingScheduler<I, S>
-    where
-        S: HasCorpus<I> + HasRand + HasMetadata + HasParent,
-        I: Input + Debug,
+where
+    S: HasCorpus<I> + HasRand + HasMetadata + HasParent,
+    I: Input + Debug,
 {
     fn report_corpus(&self, state: &mut S, state_idx: usize) {
         self.vote(state, state_idx, 3);
@@ -162,8 +162,6 @@ impl<I, S> HasReportCorpus<S> for SortedDroppingScheduler<I, S>
         self.vote(state, state_idx, amt);
     }
 }
-
-
 
 impl_serdeany!(VoteData);
 
@@ -238,7 +236,12 @@ where
                     self.on_remove(state, *x, &None);
                     #[cfg(feature = "full_trace")]
                     {
-                        state.metadata_mut().get_mut::<VoteData>().unwrap().deps.remove_node(*x);
+                        state
+                            .metadata_mut()
+                            .get_mut::<VoteData>()
+                            .unwrap()
+                            .deps
+                            .remove_node(*x);
                         unsafe {
                             REMOVED_CORPUS += 1;
                         }
@@ -248,10 +251,20 @@ where
                         state.corpus_mut().remove(*x).expect("failed to remove");
                     }
                 });
-                state.metadata_mut().get_mut::<VoteData>().unwrap().to_remove = to_remove;
+                state
+                    .metadata_mut()
+                    .get_mut::<VoteData>()
+                    .unwrap()
+                    .to_remove = to_remove;
                 #[cfg(feature = "full_trace")]
                 {
-                    for idx in state.metadata_mut().get_mut::<VoteData>().unwrap().deps.garbage_collection() {
+                    for idx in state
+                        .metadata_mut()
+                        .get_mut::<VoteData>()
+                        .unwrap()
+                        .deps
+                        .garbage_collection()
+                    {
                         state.corpus_mut().remove(idx).expect("failed to remove");
                     }
                 }
@@ -322,7 +335,8 @@ where
             }
         }
 
-        if idx == usize::MAX {  // if we didn't find an input, just use the last one
+        if idx == usize::MAX {
+            // if we didn't find an input, just use the last one
             idx = *data.sorted_votes.last().unwrap();
         }
 
@@ -369,7 +383,6 @@ where
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

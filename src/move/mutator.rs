@@ -1,36 +1,36 @@
-use std::fmt::Debug;
-use libafl::Error;
-use libafl::inputs::Input;
-use libafl::mutators::{MutationResult, Mutator};
-use libafl::prelude::{HasMaxSize, HasMetadata, HasRand, Rand, Scheduler, State};
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::{ConciseSerde, VMInputT};
 use crate::r#move::input::MoveFunctionInputT;
 use crate::r#move::vm_state::MoveVMStateT;
 use crate::state::{HasCaller, HasItyState, InfantStateState};
 use crate::state_input::StagedVMState;
+use libafl::inputs::Input;
+use libafl::mutators::{MutationResult, Mutator};
+use libafl::prelude::{HasMaxSize, HasMetadata, HasRand, Rand, Scheduler, State};
+use libafl::Error;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use std::fmt::Debug;
 
 pub struct MoveFuzzMutator<'a, VS, Loc, Addr, SC, CI>
-    where
-        VS: Default + VMStateT,
-        SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>,
-        Addr: Serialize + DeserializeOwned + Debug + Clone,
-        Loc: Serialize + DeserializeOwned + Debug + Clone,
-        CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
+where
+    VS: Default + VMStateT,
+    SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>,
+    Addr: Serialize + DeserializeOwned + Debug + Clone,
+    Loc: Serialize + DeserializeOwned + Debug + Clone,
+    CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     pub infant_scheduler: &'a SC,
     pub phantom: std::marker::PhantomData<(VS, Loc, Addr, CI)>,
 }
 
 impl<'a, VS, Loc, Addr, SC, CI> MoveFuzzMutator<'a, VS, Loc, Addr, SC, CI>
-    where
-        VS: Default + VMStateT,
-        SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>,
-        Addr: Serialize + DeserializeOwned + Debug + Clone,
-        Loc: Serialize + DeserializeOwned + Debug + Clone,
-        CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
+where
+    VS: Default + VMStateT,
+    SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>,
+    Addr: Serialize + DeserializeOwned + Debug + Clone,
+    Loc: Serialize + DeserializeOwned + Debug + Clone,
+    CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     pub fn new(infant_scheduler: &'a SC) -> Self {
         Self {
@@ -41,14 +41,19 @@ impl<'a, VS, Loc, Addr, SC, CI> MoveFuzzMutator<'a, VS, Loc, Addr, SC, CI>
 }
 
 impl<'a, VS, Loc, Addr, I, S, SC, CI> Mutator<I, S> for MoveFuzzMutator<'a, VS, Loc, Addr, SC, CI>
-    where
-        I: VMInputT<VS, Loc, Addr, CI> + Input + MoveFunctionInputT,
-        S: State + HasRand + HasMaxSize + HasItyState<Loc, Addr, VS, CI> + HasCaller<Addr> + HasMetadata,
-        SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>,
-        VS: Default + VMStateT + MoveVMStateT,
-        Addr: PartialEq + Debug + Serialize + DeserializeOwned + Clone,
-        Loc: Serialize + DeserializeOwned + Debug + Clone,
-        CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
+where
+    I: VMInputT<VS, Loc, Addr, CI> + Input + MoveFunctionInputT,
+    S: State
+        + HasRand
+        + HasMaxSize
+        + HasItyState<Loc, Addr, VS, CI>
+        + HasCaller<Addr>
+        + HasMetadata,
+    SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>,
+    VS: Default + VMStateT + MoveVMStateT,
+    Addr: PartialEq + Debug + Serialize + DeserializeOwned + Clone,
+    Loc: Serialize + DeserializeOwned + Debug + Clone,
+    CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     fn mutate(
         &mut self,
@@ -95,7 +100,7 @@ impl<'a, VS, Loc, Addr, I, S, SC, CI> Mutator<I, S> for MoveFuzzMutator<'a, VS, 
                     } else {
                         MutationResult::Skipped
                     }
-                },
+                }
             }
         };
 

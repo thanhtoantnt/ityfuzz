@@ -147,7 +147,7 @@ where
 
         macro_rules! push_false {
             () => {
-                self.dirty_stack.push(false);
+                self.dirty_stack.push(false)
             };
         }
 
@@ -386,8 +386,11 @@ where
     }
 
     unsafe fn on_return(
-        &mut self, _interp: &mut Interpreter, _host: &mut FuzzHost<VS, I, S>, _state: &mut S,
-        _by: &Bytes
+        &mut self,
+        _interp: &mut Interpreter,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
+        _by: &Bytes,
     ) {
         self.pop_ctx();
     }
@@ -463,12 +466,11 @@ where
     fn get_type(&self) -> MiddlewareType {
         MiddlewareType::Sha3Bypass
     }
-
 }
 
 mod tests {
     use super::*;
-    use crate::evm::input::{EVMInput};
+    use crate::evm::input::EVMInput;
     use crate::evm::mutator::AccessPattern;
     use crate::evm::types::{generate_random_address, EVMFuzzState};
     use crate::evm::vm::{EVMExecutor, EVMState};
@@ -478,7 +480,7 @@ mod tests {
     use bytes::Bytes;
     use libafl::schedulers::StdScheduler;
     use revm_interpreter::analysis::to_analysed;
-    
+
     use revm_interpreter::BytecodeLocked;
     use std::cell::RefCell;
     use std::path::Path;

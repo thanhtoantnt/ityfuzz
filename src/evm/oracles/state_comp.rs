@@ -1,5 +1,5 @@
 use crate::evm::input::{ConciseEVMInput, EVMInput};
-use crate::evm::oracle::{EVMBugResult};
+use crate::evm::oracle::EVMBugResult;
 
 use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx, EVMU256};
 use crate::evm::vm::EVMState;
@@ -8,14 +8,8 @@ use crate::state::HasExecutionResult;
 use bytes::Bytes;
 use revm_primitives::Bytecode;
 
-
-
-
-
-
-
 use crate::evm::host::STATE_CHANGE;
-use crate::evm::oracles::{STATE_COMP_BUG_IDX};
+use crate::evm::oracles::STATE_COMP_BUG_IDX;
 
 use crate::generic_vm::vm_state::VMStateT;
 
@@ -45,13 +39,25 @@ impl StateCompOracle {
     pub fn new(desired_state: EVMState, matching_style: String) -> Self {
         Self {
             desired_state,
-            matching_style: StateCompMatching::from_str(matching_style.as_str()).expect("invalid state comp matching style"),
+            matching_style: StateCompMatching::from_str(matching_style.as_str())
+                .expect("invalid state comp matching style"),
         }
     }
 }
 
-impl Oracle<EVMState, EVMAddress, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8>, EVMInput, EVMFuzzState, ConciseEVMInput>
-for StateCompOracle
+impl
+    Oracle<
+        EVMState,
+        EVMAddress,
+        Bytecode,
+        Bytes,
+        EVMAddress,
+        EVMU256,
+        Vec<u8>,
+        EVMInput,
+        EVMFuzzState,
+        ConciseEVMInput,
+    > for StateCompOracle
 {
     fn transition(&self, _ctx: &mut EVMOracleCtx<'_>, _stage: u64) -> u64 {
         0
@@ -69,11 +75,10 @@ for StateCompOracle
             Vec<u8>,
             EVMInput,
             EVMFuzzState,
-            ConciseEVMInput
+            ConciseEVMInput,
         >,
         _stage: u64,
     ) -> Vec<u64> {
-
         let comp = |state1: &EVMState, state2: &EVMState| -> bool {
             match self.matching_style {
                 StateCompMatching::Exact => state1.eq(state2),
@@ -89,12 +94,12 @@ for StateCompOracle
                     STATE_COMP_BUG_IDX,
                     "Found equivalent state".to_string(),
                     ConciseEVMInput::from_input(ctx.input, ctx.fuzz_state.get_execution_result()),
-                ).push_to_output();
+                )
+                .push_to_output();
                 vec![STATE_COMP_BUG_IDX]
             } else {
                 vec![]
             }
         }
-
     }
 }

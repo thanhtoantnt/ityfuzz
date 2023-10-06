@@ -1,7 +1,5 @@
 /// A corpus in memory with self-incementing indexes for items.
-
 use core::cell::RefCell;
-
 
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +28,6 @@ where
     /// Current testcase scheduled
     current: Option<usize>,
 }
-
 
 impl<I> Corpus<I> for IndexedInMemoryCorpus<I>
 where

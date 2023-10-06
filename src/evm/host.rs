@@ -1,23 +1,18 @@
-
 use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::{
     add_corpus, CallMiddlewareReturn, Middleware, MiddlewareType,
 };
 use crate::evm::mutator::AccessPattern;
 
-
-use crate::evm::onchain::flashloan::{Flashloan};
+use crate::evm::onchain::flashloan::Flashloan;
 use bytes::Bytes;
 use itertools::Itertools;
 use libafl::prelude::{HasCorpus, HasMetadata, HasRand, Scheduler};
 use libafl::state::State;
 
-
 use revm_interpreter::InstructionResult::{Continue, ControlLeak, Revert};
 
-use crate::evm::types::{
-    as_u64, generate_random_address, is_zero, EVMAddress, EVMU256,
-};
+use crate::evm::types::{as_u64, generate_random_address, is_zero, EVMAddress, EVMU256};
 
 use revm::precompile::{Precompile, Precompiles};
 use revm_interpreter::analysis::to_analysed;
@@ -39,12 +34,8 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
 
-
-
-use crate::evm::vm::{
-    EVMState, SinglePostExecution, IN_DEPLOY, IS_FAST_CALL_STATIC,
-};
-use crate::generic_vm::vm_executor::{MAP_SIZE};
+use crate::evm::vm::{EVMState, SinglePostExecution, IN_DEPLOY, IS_FAST_CALL_STATIC};
+use crate::generic_vm::vm_executor::MAP_SIZE;
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
 
@@ -317,11 +308,7 @@ where
     }
 
     /// custom spec id run_inspect
-    pub fn run_inspect(
-        &mut self,
-        interp: &mut Interpreter,
-        state: &mut S,
-    ) -> InstructionResult {
+    pub fn run_inspect(&mut self, interp: &mut Interpreter, state: &mut S) -> InstructionResult {
         match self.spec_id {
             SpecId::LATEST => interp.run_inspect::<S, FuzzHost<VS, I, S>, LatestSpec>(self, state),
             SpecId::FRONTIER => {
@@ -610,12 +597,15 @@ where
                 return (ControlLeak, Gas::new(0), Bytes::new());
             }
             // check whether the whole CALLDATAVALUE can be arbitrary
-            if !self
-                .pc_to_call_hash
-                .contains_key(&(input.context.caller, self._pc, self.jumpi_trace))
-            {
-                self.pc_to_call_hash
-                    .insert((input.context.caller, self._pc, self.jumpi_trace), HashSet::new());
+            if !self.pc_to_call_hash.contains_key(&(
+                input.context.caller,
+                self._pc,
+                self.jumpi_trace,
+            )) {
+                self.pc_to_call_hash.insert(
+                    (input.context.caller, self._pc, self.jumpi_trace),
+                    HashSet::new(),
+                );
             }
             self.pc_to_call_hash
                 .get_mut(&(input.context.caller, self._pc, self.jumpi_trace))
@@ -629,16 +619,18 @@ where
                 > UNBOUND_CALL_THRESHOLD
                 && input_seq.len() >= 4
             {
-                self.current_arbitrary_calls.push(
-                    (input.context.caller, input.context.address, interp.program_counter()),
-                );
+                self.current_arbitrary_calls.push((
+                    input.context.caller,
+                    input.context.address,
+                    interp.program_counter(),
+                ));
                 // println!("ub leak {:?} -> {:?} with {:?} {}", input.context.caller, input.contract, hex::encode(input.input.clone()), self.jumpi_trace);
                 push_interp!();
                 return (
                     InstructionResult::ArbitraryExternalCallAddressBounded(
                         input.context.caller,
                         input.context.address,
-                        input.transfer.value
+                        input.transfer.value,
                     ),
                     Gas::new(0),
                     Bytes::new(),
@@ -1119,7 +1111,6 @@ where
         // flag check
         if _topics.len() == 1 {
             let current_flag = (*_topics.last().unwrap()).0;
-            /// hex is "fuzzland"
             if current_flag[0] == 0x66
                 && current_flag[1] == 0x75
                 && current_flag[2] == 0x7a
@@ -1306,13 +1297,13 @@ where
 
         unsafe {
             if self.middlewares_enabled {
-                for middleware in &mut self.middlewares.clone().deref().borrow_mut().iter_mut()
-                {
-                    middleware
-                        .deref()
-                        .deref()
-                        .borrow_mut()
-                        .on_return(interp, self, state, &ret_buffer);
+                for middleware in &mut self.middlewares.clone().deref().borrow_mut().iter_mut() {
+                    middleware.deref().deref().borrow_mut().on_return(
+                        interp,
+                        self,
+                        state,
+                        &ret_buffer,
+                    );
                 }
             }
         }

@@ -18,15 +18,14 @@ use libafl::state::{
     HasSolutions, State,
 };
 
-
 use serde::{Deserialize, Serialize};
 
+use crate::evm::types::EVMAddress;
 use crate::generic_vm::vm_executor::ExecutionResult;
 use crate::generic_vm::vm_state::VMStateT;
 use libafl::Error;
 use serde::de::DeserializeOwned;
 use std::path::Path;
-use crate::evm::types::EVMAddress;
 
 /// Amount of accounts and contracts that can be caller during fuzzing.
 /// We will generate random addresses for these accounts and contracts.
@@ -52,7 +51,12 @@ where
         SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>;
 
     /// Add a VMState to the infant state corpus
-    fn add_infant_state<SC>(&mut self, state: &StagedVMState<Loc, Addr, VS, CI>, scheduler: &SC, parent_idx: usize) -> usize
+    fn add_infant_state<SC>(
+        &mut self,
+        state: &StagedVMState<Loc, Addr, VS, CI>,
+        scheduler: &SC,
+        parent_idx: usize,
+    ) -> usize
     where
         SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>;
 }
@@ -307,11 +311,11 @@ pub trait HasParent {
 }
 
 impl<Loc, Addr, VS, CI> HasParent for InfantStateState<Loc, Addr, VS, CI>
-    where
-        VS: Default + VMStateT,
-        Addr: Serialize + DeserializeOwned + Debug + Clone,
-        Loc: Serialize + DeserializeOwned + Debug + Clone,
-        CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
+where
+    VS: Default + VMStateT,
+    Addr: Serialize + DeserializeOwned + Debug + Clone,
+    Loc: Serialize + DeserializeOwned + Debug + Clone,
+    CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     fn get_parent_idx(&self) -> usize {
         self.current_parent_idx
@@ -364,7 +368,8 @@ where
 {
 }
 
-impl<Loc, Addr, VS, CI> HasCorpus<StagedVMState<Loc, Addr, VS, CI>> for InfantStateState<Loc, Addr, VS, CI>
+impl<Loc, Addr, VS, CI> HasCorpus<StagedVMState<Loc, Addr, VS, CI>>
+    for InfantStateState<Loc, Addr, VS, CI>
 where
     VS: Default + VMStateT + DeserializeOwned,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
@@ -416,7 +421,8 @@ where
     }
 }
 
-impl<VI, VS, Loc, Addr, Out, CI> HasItyState<Loc, Addr, VS, CI> for FuzzState<VI, VS, Loc, Addr, Out, CI>
+impl<VI, VS, Loc, Addr, Out, CI> HasItyState<Loc, Addr, VS, CI>
+    for FuzzState<VI, VS, Loc, Addr, Out, CI>
 where
     VS: Default + VMStateT,
     VI: VMInputT<VS, Loc, Addr, CI> + Input + 'static,
@@ -448,7 +454,12 @@ where
 
     /// Add a new infant state to the infant state corpus
     /// and setup the scheduler
-    fn add_infant_state<SC>(&mut self, state: &StagedVMState<Loc, Addr, VS, CI>, scheduler: &SC, parent_idx: usize) -> usize
+    fn add_infant_state<SC>(
+        &mut self,
+        state: &StagedVMState<Loc, Addr, VS, CI>,
+        scheduler: &SC,
+        parent_idx: usize,
+    ) -> usize
     where
         SC: Scheduler<StagedVMState<Loc, Addr, VS, CI>, InfantStateState<Loc, Addr, VS, CI>>,
     {

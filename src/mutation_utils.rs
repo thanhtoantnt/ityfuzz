@@ -13,8 +13,8 @@ use libafl::state::{HasMaxSize, HasRand, State};
 use libafl::{impl_serdeany, Error};
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
 use crate::evm::types::EVMU256;
+use std::collections::HashMap;
 
 /// Constants in the contracts
 ///
@@ -74,8 +74,8 @@ where
         let idx = state.rand_mut().next() as usize;
 
         let constant = match state.metadata().get::<ConstantPoolMetadata>() {
-            Some(meta) if !meta.constants.is_empty() => unsafe { 
-                meta.constants.get_unchecked(idx % meta.constants.len()) 
+            Some(meta) if !meta.constants.is_empty() => unsafe {
+                meta.constants.get_unchecked(idx % meta.constants.len())
             },
             _ => return Ok(MutationResult::Skipped),
         };
@@ -154,7 +154,6 @@ where
         Ok(MutationResult::Mutated)
     }
 }
-
 
 /// Mutator that mutates the `CONSTANT SIZE` input bytes (e.g., uint256) in various ways provided by
 /// [`libafl::mutators`]. It also uses the [`ConstantHintedMutator`] and [`VMStateHintedMutator`]

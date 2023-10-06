@@ -55,15 +55,16 @@ pub fn fetch_abi_heimdall(bytecode: String) -> Vec<ABIConfig> {
             }
         }
     }
-    FileSystemCache::new("cache/heimdall").save(
-        cache_key.as_str(),
-        serde_json::to_string(&result).unwrap().as_str(),
-    ).expect("unable to save cache");
+    FileSystemCache::new("cache/heimdall")
+        .save(
+            cache_key.as_str(),
+            serde_json::to_string(&result).unwrap().as_str(),
+        )
+        .expect("unable to save cache");
     result
 }
 
 mod tests {
-    
 
     #[test]
     fn test_heimdall() {

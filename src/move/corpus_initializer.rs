@@ -1,8 +1,16 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::sync::Arc;
-use std::time::Duration;
+use crate::generic_vm::vm_executor::GenericVM;
+use crate::input::VMInputT;
+use crate::mutation_utils::ConstantPoolMetadata;
+use crate::r#move::input::{
+    CloneableValue, FunctionDefaultable, MoveFunctionInput, StructAbilities,
+};
+use crate::r#move::movevm;
+use crate::r#move::movevm::TypeTagInfoMeta;
+use crate::r#move::scheduler::MoveSchedulerMeta;
+use crate::r#move::types::{MoveFuzzState, MoveInfantStateState, MoveStagedVMState};
+use crate::r#move::vm_state::MoveVMState;
+use crate::state::HasCaller;
+use crate::state_input::StagedVMState;
 use glob::glob;
 use itertools::Itertools;
 use libafl::corpus::{Corpus, Testcase};
@@ -10,8 +18,8 @@ use libafl::prelude::Rand;
 use libafl::schedulers::Scheduler;
 use libafl::state::{HasCorpus, HasMetadata, HasRand, State};
 use move_binary_format::access::ModuleAccess;
-use move_binary_format::CompiledModule;
 use move_binary_format::file_format::Bytecode;
+use move_binary_format::CompiledModule;
 use move_core_types::account_address::AccountAddress;
 use move_core_types::identifier::Identifier;
 use move_core_types::language_storage::{ModuleId, StructTag};
@@ -21,19 +29,12 @@ use move_vm_types::loaded_data::runtime_types::Type;
 use move_vm_types::values;
 use move_vm_types::values::{Container, ContainerRef, IndexedRef, Value, ValueImpl};
 use revm_primitives::HashSet;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::Arc;
+use std::time::Duration;
 use sui_types::base_types::{TX_CONTEXT_MODULE_NAME, TX_CONTEXT_STRUCT_NAME};
-use crate::generic_vm::vm_executor::GenericVM;
-use crate::input::VMInputT;
-use crate::mutation_utils::ConstantPoolMetadata;
-use crate::r#move::input::{CloneableValue, FunctionDefaultable, MoveFunctionInput, StructAbilities};
-use crate::r#move::movevm;
-use crate::r#move::movevm::TypeTagInfoMeta;
-use crate::r#move::scheduler::MoveSchedulerMeta;
-use crate::r#move::types::{MoveInfantStateState, MoveFuzzState, MoveStagedVMState};
-use crate::r#move::vm_state::MoveVMState;
-use crate::state::HasCaller;
-use crate::state_input::StagedVMState;
-
 
 pub enum MoveInputStatus {
     Complete(Value),
@@ -49,15 +50,18 @@ pub struct MoveCorpusInitializer<'a> {
 }
 
 pub fn is_tx_context(struct_tag: &StructTag) -> bool {
-    struct_tag.address == AccountAddress::new(
-        hex::decode("0000000000000000000000000000000000000000000000000000000000000002").unwrap()
-            .try_into().unwrap()
-    ) && struct_tag.module == TX_CONTEXT_MODULE_NAME.into() && struct_tag.name == TX_CONTEXT_STRUCT_NAME.into()
+    struct_tag.address
+        == AccountAddress::new(
+            hex::decode("0000000000000000000000000000000000000000000000000000000000000002")
+                .unwrap()
+                .try_into()
+                .unwrap(),
+        )
+        && struct_tag.module == TX_CONTEXT_MODULE_NAME.into()
+        && struct_tag.name == TX_CONTEXT_STRUCT_NAME.into()
 }
 
-impl<'a> MoveCorpusInitializer<'a>
-{
-
+impl<'a> MoveCorpusInitializer<'a> {
     pub fn new(
         state: &'a mut MoveFuzzState,
         executor: &'a mut movevm::MoveVM<MoveFunctionInput, MoveFuzzState>,
@@ -69,9 +73,7 @@ impl<'a> MoveCorpusInitializer<'a>
             executor,
             scheduler,
             infant_scheduler,
-            default_state: MoveStagedVMState::new_with_state(
-                MoveVMState::new()
-            ),
+            default_state: MoveStagedVMState::new_with_state(MoveVMState::new()),
         }
     }
 
@@ -88,13 +90,16 @@ impl<'a> MoveCorpusInitializer<'a>
 
         // add metadata
         self.state.metadata_mut().insert(StructAbilities::new());
-        self.state.metadata_mut().insert(ConstantPoolMetadata::new());
-        self.state.infant_states_state.metadata_mut().insert(MoveSchedulerMeta::new());
+        self.state
+            .metadata_mut()
+            .insert(ConstantPoolMetadata::new());
+        self.state
+            .infant_states_state
+            .metadata_mut()
+            .insert(MoveSchedulerMeta::new());
 
         // setup infant scheduler & corpus
-        self.default_state = StagedVMState::new_with_state(
-            MoveVMState::new()
-        );
+        self.default_state = StagedVMState::new_with_state(MoveVMState::new());
         let mut tc = Testcase::new(self.default_state.clone());
         tc.set_exec_time(Duration::from_secs(0));
         let idx = self
@@ -108,12 +113,15 @@ impl<'a> MoveCorpusInitializer<'a>
             .expect("failed to call infant scheduler on_add");
     }
 
-
     pub fn initialize_glob(&mut self, dirs: Vec<String>) {
         let mut modules = vec![];
         let mut modules_dependencies = vec![];
         for directory in dirs {
-            let deps = glob::glob(&format!("{}/*/bytecode_modules/dependencies/*/*.mv", directory)).unwrap();
+            let deps = glob::glob(&format!(
+                "{}/*/bytecode_modules/dependencies/*/*.mv",
+                directory
+            ))
+            .unwrap();
 
             for path in deps {
                 let module = std::fs::read(path.unwrap()).unwrap();
@@ -131,59 +139,56 @@ impl<'a> MoveCorpusInitializer<'a>
                 // add the module to the corpus
                 modules.push(module);
             }
-
         }
         self.add_module(modules, modules_dependencies);
     }
 
     fn extract_constants(&mut self, module: &CompiledModule) {
-        let constant_pool = self.state.metadata_mut()
+        let constant_pool = self
+            .state
+            .metadata_mut()
             .get_mut::<ConstantPoolMetadata>()
             .expect("failed to get constant pool metadata");
 
-        module.constant_pool.iter().for_each(
-            |constant| {
-                constant_pool.add_constant(constant.data.clone());
-            }
-        );
-
-        module.function_defs.iter().for_each(|defs| {
-            match defs.code {
-                Some(ref code) => {
-                    code.code.iter().for_each(|instr| {
-                        match instr {
-                            Bytecode::LdU16(x) => {
-                                constant_pool.add_constant((*x).to_le_bytes().to_vec());
-                            },
-                            Bytecode::LdU64(x) => {
-                                constant_pool.add_constant((*x).to_le_bytes().to_vec());
-                            },
-                            Bytecode::LdU8(x) => {
-                                constant_pool.add_constant((*x).to_le_bytes().to_vec());
-                            },
-                            Bytecode::LdU32(x) => {
-                                constant_pool.add_constant((*x).to_le_bytes().to_vec());
-                            },
-                            Bytecode::LdU128(x) => {
-                                constant_pool.add_constant((*x).to_le_bytes().to_vec());
-                            },
-                            Bytecode::LdU256(x) => {
-                                constant_pool.add_constant((*x).to_le_bytes().to_vec());
-                            },
-                            _ => {}
-                        }
-                    })
-                },
-                None => {}
-            }
+        module.constant_pool.iter().for_each(|constant| {
+            constant_pool.add_constant(constant.data.clone());
         });
+
+        module
+            .function_defs
+            .iter()
+            .for_each(|defs| match defs.code {
+                Some(ref code) => code.code.iter().for_each(|instr| match instr {
+                    Bytecode::LdU16(x) => {
+                        constant_pool.add_constant((*x).to_le_bytes().to_vec());
+                    }
+                    Bytecode::LdU64(x) => {
+                        constant_pool.add_constant((*x).to_le_bytes().to_vec());
+                    }
+                    Bytecode::LdU8(x) => {
+                        constant_pool.add_constant((*x).to_le_bytes().to_vec());
+                    }
+                    Bytecode::LdU32(x) => {
+                        constant_pool.add_constant((*x).to_le_bytes().to_vec());
+                    }
+                    Bytecode::LdU128(x) => {
+                        constant_pool.add_constant((*x).to_le_bytes().to_vec());
+                    }
+                    Bytecode::LdU256(x) => {
+                        constant_pool.add_constant((*x).to_le_bytes().to_vec());
+                    }
+                    _ => {}
+                }),
+                None => {}
+            });
     }
 
-
-    fn deployer(&mut self,
-                to_deploy: Vec<ModuleId>,
-                deployed: &mut HashSet<ModuleId>,
-                module_id_to_module: &HashMap<ModuleId, CompiledModule>) {
+    fn deployer(
+        &mut self,
+        to_deploy: Vec<ModuleId>,
+        deployed: &mut HashSet<ModuleId>,
+        module_id_to_module: &HashMap<ModuleId, CompiledModule>,
+    ) {
         for mod_id in to_deploy {
             if deployed.contains(&mod_id) {
                 continue;
@@ -196,13 +201,17 @@ impl<'a> MoveCorpusInitializer<'a>
 
             let deps = module.immediate_dependencies();
             self.deployer(deps, deployed, module_id_to_module);
-            self.executor.deploy(module, None, AccountAddress::random(), &mut self.state);
+            self.executor
+                .deploy(module, None, AccountAddress::random(), &mut self.state);
             deployed.insert(mod_id);
         }
-
     }
 
-    fn add_module(&mut self, modules: Vec<CompiledModule>, modules_dependencies: Vec<CompiledModule>) {
+    fn add_module(
+        &mut self,
+        modules: Vec<CompiledModule>,
+        modules_dependencies: Vec<CompiledModule>,
+    ) {
         macro_rules! wrap_input {
             ($input: expr) => {{
                 let mut tc = Testcase::new($input);
@@ -217,7 +226,7 @@ impl<'a> MoveCorpusInitializer<'a>
         self.deployer(
             modules.iter().map(|m| m.self_id()).collect_vec(),
             &mut HashSet::new(),
-            &module_id_to_module
+            &module_id_to_module,
         );
 
         let mut module_id_to_fuzz = modules.iter().map(|m| m.self_id()).collect::<HashSet<_>>();
@@ -231,11 +240,13 @@ impl<'a> MoveCorpusInitializer<'a>
                 let input = self.build_input(&module_id, func.clone());
                 match input {
                     Some(input) => {
-
-                        let idx = self.state.add_tx_to_corpus(
-                            wrap_input!(input)
-                        ).expect("failed to add input to corpus");
-                        self.scheduler.on_add(self.state, idx).expect("failed to call scheduler on_add");
+                        let idx = self
+                            .state
+                            .add_tx_to_corpus(wrap_input!(input))
+                            .expect("failed to add input to corpus");
+                        self.scheduler
+                            .on_add(self.state, idx)
+                            .expect("failed to call scheduler on_add");
                     }
                     None => {
                         // dependent on structs
@@ -249,152 +260,151 @@ impl<'a> MoveCorpusInitializer<'a>
     // if struct is found, return None because we cannot instantiate a struct
     fn gen_default_value(state: &mut MoveFuzzState, ty: Box<Type>) -> MoveInputStatus {
         match *ty {
-            Type::Bool => {
-                MoveInputStatus::Complete(Value::bool(false))
-            }
-            Type::U8 => {
-                MoveInputStatus::Complete(Value::u8(0))
-            }
-            Type::U16 => {
-                MoveInputStatus::Complete(Value::u16(0))
-            }
-            Type::U32 => {
-                MoveInputStatus::Complete(Value::u32(0))
-            }
-            Type::U64 => {
-                MoveInputStatus::Complete(Value::u64(0))
-            }
-            Type::U128 => {
-                MoveInputStatus::Complete(Value::u128(0))
-            }
-            Type::U256 => {
-                MoveInputStatus::Complete(Value::u256(U256::zero()))
-            }
-            Type::Address => {
-                MoveInputStatus::Complete(Value::address(state.get_rand_address()))
-            }
-            Type::Signer => {
-                MoveInputStatus::Complete(Value::signer(state.get_rand_address()))
-            }
+            Type::Bool => MoveInputStatus::Complete(Value::bool(false)),
+            Type::U8 => MoveInputStatus::Complete(Value::u8(0)),
+            Type::U16 => MoveInputStatus::Complete(Value::u16(0)),
+            Type::U32 => MoveInputStatus::Complete(Value::u32(0)),
+            Type::U64 => MoveInputStatus::Complete(Value::u64(0)),
+            Type::U128 => MoveInputStatus::Complete(Value::u128(0)),
+            Type::U256 => MoveInputStatus::Complete(Value::u256(U256::zero())),
+            Type::Address => MoveInputStatus::Complete(Value::address(state.get_rand_address())),
+            Type::Signer => MoveInputStatus::Complete(Value::signer(state.get_rand_address())),
             Type::Vector(v) => {
                 macro_rules! wrap {
                     ($v: ident, $default: expr) => {
-                        MoveInputStatus::Complete(
-                            Value(ValueImpl::Container(
-                                Container::$v(Rc::new(RefCell::new($default)))
-                            ))
-                        )
+                        MoveInputStatus::Complete(Value(ValueImpl::Container(Container::$v(
+                            Rc::new(RefCell::new($default)),
+                        ))))
                     };
                 }
                 match *v.clone() {
-                    Type::Vector(_) =>
-                        todo!("vector of vector"),
-                    Type::Bool => { wrap!(VecBool, vec![false]) }
-                    Type::U8 => { wrap!(VecU8, vec![0]) }
-                    Type::U64 => { wrap!(VecU64, vec![0]) }
-                    Type::U128 => { wrap!(VecU128, vec![0]) }
-                    Type::U16 => { wrap!(VecU16, vec![0]) }
-                    Type::U32 => { wrap!(VecU32, vec![0]) }
-                    Type::U256 => { wrap!(VecU256, vec![U256::zero()]) }
-                    Type::Address => { wrap!(VecAddress, vec![state.get_rand_address()]) }
-                    Type::Signer => { unreachable!("cannot initialize signer vector") }
-                    Type::Reference(_) | Type::MutableReference(_) | Type::Vector(_) | Type::Struct(_) => {
+                    Type::Vector(_) => todo!("vector of vector"),
+                    Type::Bool => {
+                        wrap!(VecBool, vec![false])
+                    }
+                    Type::U8 => {
+                        wrap!(VecU8, vec![0])
+                    }
+                    Type::U64 => {
+                        wrap!(VecU64, vec![0])
+                    }
+                    Type::U128 => {
+                        wrap!(VecU128, vec![0])
+                    }
+                    Type::U16 => {
+                        wrap!(VecU16, vec![0])
+                    }
+                    Type::U32 => {
+                        wrap!(VecU32, vec![0])
+                    }
+                    Type::U256 => {
+                        wrap!(VecU256, vec![U256::zero()])
+                    }
+                    Type::Address => {
+                        wrap!(VecAddress, vec![state.get_rand_address()])
+                    }
+                    Type::Signer => {
+                        unreachable!("cannot initialize signer vector")
+                    }
+                    Type::Reference(_)
+                    | Type::MutableReference(_)
+                    | Type::Vector(_)
+                    | Type::Struct(_) => {
                         let default_inner = Self::gen_default_value(state, v);
                         if let MoveInputStatus::Complete(Value(inner)) = default_inner {
                             wrap!(Vec, vec![inner])
-                        } else if let MoveInputStatus::DependentOnStructs(Value(inner), deps) = default_inner {
+                        } else if let MoveInputStatus::DependentOnStructs(Value(inner), deps) =
+                            default_inner
+                        {
                             MoveInputStatus::DependentOnStructs(
-                                Value(ValueImpl::Container(
-                                    Container::Vec(Rc::new(RefCell::new(vec![inner])))
-                                )),
-                                deps
+                                Value(ValueImpl::Container(Container::Vec(Rc::new(RefCell::new(
+                                    vec![inner],
+                                ))))),
+                                deps,
                             )
                         } else {
                             unreachable!()
                         }
                     }
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
             }
 
-
-            Type::Struct(_) => {
-                MoveInputStatus::DependentOnStructs(
-                    Value(ValueImpl::Container(
-                        Container::Struct(Rc::new(RefCell::new(vec![])))
-                    )),
-                    vec![*ty]
-                )
-            }
+            Type::Struct(_) => MoveInputStatus::DependentOnStructs(
+                Value(ValueImpl::Container(Container::Struct(Rc::new(
+                    RefCell::new(vec![]),
+                )))),
+                vec![*ty],
+            ),
             Type::Reference(ty) => {
                 let default_inner = Self::gen_default_value(state, ty);
                 if let MoveInputStatus::Complete(Value(inner)) = default_inner {
                     if let ValueImpl::Container(inner_v) = inner {
                         MoveInputStatus::Complete(Value(ValueImpl::ContainerRef(
-                            ContainerRef::Local(inner_v)
+                            ContainerRef::Local(inner_v),
                         )))
                     } else {
-                        MoveInputStatus::Complete(Value(ValueImpl::IndexedRef(
-                            IndexedRef {
-                                idx: 0,
-                                container_ref: ContainerRef::Local(Container::Locals(Rc::new(RefCell::new(vec![inner]))))
-                            }
-                        )))
+                        MoveInputStatus::Complete(Value(ValueImpl::IndexedRef(IndexedRef {
+                            idx: 0,
+                            container_ref: ContainerRef::Local(Container::Locals(Rc::new(
+                                RefCell::new(vec![inner]),
+                            ))),
+                        })))
                     }
-                } else if let MoveInputStatus::DependentOnStructs(Value(ValueImpl::Container(cont)), deps) = default_inner {
+                } else if let MoveInputStatus::DependentOnStructs(
+                    Value(ValueImpl::Container(cont)),
+                    deps,
+                ) = default_inner
+                {
                     MoveInputStatus::DependentOnStructs(
-                        Value(ValueImpl::ContainerRef(
-                            ContainerRef::Local(cont)
-                        )),
-                        deps
+                        Value(ValueImpl::ContainerRef(ContainerRef::Local(cont))),
+                        deps,
                     )
                 } else {
                     unreachable!()
                 }
             }
-            Type::MutableReference(ty)  => {
+            Type::MutableReference(ty) => {
                 let default_inner = Self::gen_default_value(state, ty);
                 if let MoveInputStatus::Complete(Value(inner)) = default_inner {
                     if let ValueImpl::Container(inner_v) = inner {
                         MoveInputStatus::Complete(Value(ValueImpl::ContainerRef(
-                            ContainerRef::Local(inner_v)
+                            ContainerRef::Local(inner_v),
                         )))
                     } else {
-                        MoveInputStatus::Complete(Value(ValueImpl::IndexedRef(
-                            IndexedRef {
-                                idx: 0,
-                                container_ref: ContainerRef::Local(Container::Locals(Rc::new(RefCell::new(vec![inner]))))
-                            }
-                        )))
+                        MoveInputStatus::Complete(Value(ValueImpl::IndexedRef(IndexedRef {
+                            idx: 0,
+                            container_ref: ContainerRef::Local(Container::Locals(Rc::new(
+                                RefCell::new(vec![inner]),
+                            ))),
+                        })))
                     }
-                } else if let MoveInputStatus::DependentOnStructs(Value(ValueImpl::Container(cont)), deps) = default_inner {
+                } else if let MoveInputStatus::DependentOnStructs(
+                    Value(ValueImpl::Container(cont)),
+                    deps,
+                ) = default_inner
+                {
                     MoveInputStatus::DependentOnStructs(
-                        Value(ValueImpl::ContainerRef(
-                            ContainerRef::Local(cont)
-                        )),
-                        deps
+                        Value(ValueImpl::ContainerRef(ContainerRef::Local(cont))),
+                        deps,
                     )
                 } else {
                     unreachable!()
                 }
             }
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 
     fn find_struct_deps(&mut self, ty: Box<Type>) -> Vec<Type> {
         match *ty {
-            Type::Vector(v) => {
-                self.find_struct_deps(v)
-            }
+            Type::Vector(v) => self.find_struct_deps(v),
 
             Type::Struct(v) => {
                 vec![Type::Struct(v)]
             }
-            Type::Reference(ty) | Type::MutableReference(ty)  => {
-                self.find_struct_deps(ty)
-            }
-            _ => vec![]
+            Type::Reference(ty) | Type::MutableReference(ty) => self.find_struct_deps(ty),
+            _ => vec![],
         }
     }
 
@@ -415,31 +425,29 @@ impl<'a> MoveCorpusInitializer<'a>
                 //     ids_created: u64
                 // }
                 let inner = Container::Struct(Rc::new(RefCell::new(vec![
-                        ValueImpl::Address(self.state.get_rand_caller()),
-                        ValueImpl::Container(
-                            Container::VecU8(Rc::new(RefCell::new(vec![6;32])))
-                        ),
-                        ValueImpl::U64(123213),
-                        ValueImpl::U64(2130127412),
-                        ValueImpl::U64(0),
-                    ])));
+                    ValueImpl::Address(self.state.get_rand_caller()),
+                    ValueImpl::Container(Container::VecU8(Rc::new(RefCell::new(vec![6; 32])))),
+                    ValueImpl::U64(123213),
+                    ValueImpl::U64(2130127412),
+                    ValueImpl::U64(0),
+                ])));
 
-                return Value(ValueImpl::ContainerRef(
-                    ContainerRef::Local(
-                        inner
-                    )
-                ))
+                return Value(ValueImpl::ContainerRef(ContainerRef::Local(inner)));
             }
         }
         unreachable!()
-
     }
 
-    fn build_input(&mut self, module_id: &ModuleId, function: Arc<Function>) -> Option<MoveFunctionInput> {
+    fn build_input(
+        &mut self,
+        module_id: &ModuleId,
+        function: Arc<Function>,
+    ) -> Option<MoveFunctionInput> {
         let mut values = vec![];
         let mut resolved = true;
         let mut deps = HashMap::new();
-        let type_tag_info = self.state
+        let type_tag_info = self
+            .state
             .metadata()
             .get::<TypeTagInfoMeta>()
             .expect("type tag info not found")
