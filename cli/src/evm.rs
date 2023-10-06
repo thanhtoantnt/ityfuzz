@@ -1,5 +1,4 @@
 use clap::Parser;
-use ityfuzz::evm::blaz::builder::{BuildJob, BuildJobResult};
 use ityfuzz::evm::config::{Config, FuzzerTypes};
 use ityfuzz::evm::contract_utils::ContractLoader;
 use ityfuzz::evm::input::{ConciseEVMInput, EVMInput};
@@ -74,10 +73,6 @@ pub struct EvmArgs {
     /// Onchain Local Proxy Address (Default: None)
     #[arg(long)]
     onchain_local_proxy_addr: Option<String>,
-
-    /// Onchain which fetching method to use (All, Dump, OneByOne) (Default: OneByOne)
-    #[arg(long, default_value = "onebyone")]
-    onchain_storage_fetching: String,
 
     /// Enable Concolic (Experimental)
     #[arg(long, default_value = "false")]
@@ -166,22 +161,9 @@ pub struct EvmArgs {
     #[arg(long, default_value = "Latest")]
     spec_id: String,
 
-    /// Builder URL. If specified, will use this builder to build contracts instead of using
-    /// bins and abis.
-    #[arg(long, default_value = "")]
-    onchain_builder: String,
-
     /// Replacement config (replacing bytecode) for onchain campaign
     #[arg(long, default_value = "")]
     onchain_replacements_file: String,
-
-    /// Builder Artifacts url. If specified, will use this artifact to derive code coverage.
-    #[arg(long, default_value = "")]
-    builder_artifacts_url: String,
-
-    /// Builder Artifacts file. If specified, will use this artifact to derive code coverage.
-    #[arg(long, default_value = "")]
-    builder_artifacts_file: String,
 
     /// Offchain Config Url. If specified, will deploy based on offchain config file.
     #[arg(long, default_value = "")]
@@ -239,18 +221,6 @@ pub fn evm_main(args: EvmArgs) {
 
     let constructor_args_map = HashMap::new();
 
-    let onchain_replacements = if args.onchain_replacements_file.len() > 0 {
-        BuildJobResult::from_multi_file(args.onchain_replacements_file)
-    } else {
-        HashMap::new()
-    };
-
-    let builder = if args.onchain_builder.len() > 1 {
-        Some(BuildJob::new(args.onchain_builder, onchain_replacements))
-    } else {
-        None
-    };
-
     let config = Config {
         fuzzer_type: FuzzerTypes::from_str(args.fuzzer_type.as_str()).expect("unknown fuzzer"),
         contract_loader: match target_type {
@@ -273,9 +243,6 @@ pub fn evm_main(args: EvmArgs) {
         concolic: args.concolic,
         concolic_caller: args.concolic_caller,
         oracle: oracles,
-        onchain_storage_fetching: None,
-        replay_file: args.replay_file,
-        selfdestruct_oracle: args.selfdestruct_oracle,
         state_comp_matching: if args.state_comp_oracle.len() > 0 {
             Some(args.state_comp_matching)
         } else {
@@ -297,7 +264,6 @@ pub fn evm_main(args: EvmArgs) {
         typed_bug: args.typed_bug_oracle,
         selfdestruct_bug: args.selfdestruct_oracle,
         arbitrary_external_call: args.arbitrary_external_call_oracle,
-        builder,
     };
 
     match config.fuzzer_type {

@@ -1,6 +1,5 @@
 /// Definition of ABI types and their encoding, decoding, mutating methods
 use crate::evm::abi::ABILossyType::{TArray, TDynamic, TEmpty, TUnknown, T256};
-use crate::evm::concolic::expr::Expr;
 use crate::evm::types::{EVMAddress, EVMU256};
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::ConciseSerde;
@@ -22,9 +21,6 @@ use std::ops::{Deref, DerefMut};
 
 /// Mapping from known signature to function name
 static mut FUNCTION_SIG: Lazy<HashMap<[u8; 4], String>> = Lazy::new(HashMap::new);
-
-/// todo: remove this
-static mut CONCOLIC_COUNTER: u64 = 0;
 
 /// Convert a vector of bytes to hex string
 fn vec_to_hex(v: &Vec<u8>) -> String {
@@ -121,8 +117,6 @@ pub trait ABI: CloneABI + serde_traitobject::Serialize + serde_traitobject::Dese
     /// Convert args to string (for debugging)
     fn to_string(&self) -> String;
     fn as_any(&mut self) -> &mut dyn Any;
-    fn get_concolic(&self) -> Vec<Box<Expr>>;
-    /// Get the size of args
     fn get_size(&self) -> usize;
 }
 
@@ -248,33 +242,6 @@ impl BoxedABI {
         unsafe {
             FUNCTION_SIG.insert(function, function_name);
         }
-    }
-
-    /// Convert function hash and args to string (for debugging)
-    // pub fn to_string(&self) -> String {
-    //     if self.function == [0; 4] {
-    //         format!("Stepping with return: {}", hex::encode(self.b.to_string()))
-    //     } else {
-    //         let function_name = unsafe {
-    //             FUNCTION_SIG
-    //                 .get(&self.function)
-    //                 .unwrap_or(&hex::encode(self.function))
-    //                 .clone()
-    //         };
-    //         format!("{}{}", function_name, self.b.to_string())
-    //     }
-    // }
-
-    /// todo: remove this
-    pub fn get_concolic(self) -> Vec<Box<Expr>> {
-        [
-            self.function
-                .iter()
-                .map(|byte| Expr::const_byte(*byte))
-                .collect_vec(),
-            self.b.get_concolic(),
-        ]
-        .concat()
     }
 
     /// Set the bytes to args, used for decoding
@@ -525,10 +492,6 @@ impl ABI for AEmpty {
         self
     }
 
-    fn get_concolic(&self) -> Vec<Box<Expr>> {
-        Vec::new()
-    }
-
     fn get_size(&self) -> usize {
         0
     }
@@ -599,22 +562,6 @@ impl ABI for A256 {
 
     fn to_string(&self) -> String {
         vec_to_hex(&self.data)
-    }
-
-    fn get_concolic(&self) -> Vec<Box<Expr>> {
-        let mut bytes = vec![Expr::const_byte(0u8); 32];
-        let data_len = self.data.len();
-        unsafe {
-            let counter = CONCOLIC_COUNTER;
-            CONCOLIC_COUNTER += 1;
-            let mut ptr = bytes.as_mut_ptr();
-            ptr = ptr.add(32 - data_len);
-            for i in 0..data_len {
-                println!("[concolic] AAAAAAAA {}_A256_{}", counter, i);
-                *ptr.add(i) = Expr::sym_byte(format!("{}_A256_{}", counter, i));
-            }
-        }
-        bytes
     }
 
     fn get_size(&self) -> usize {
@@ -688,28 +635,6 @@ impl ABI for ADynamic {
         self.data = bytes[32..32 + get_size(&bytes)].to_vec();
     }
 
-    fn get_concolic(&self) -> Vec<Box<Expr>> {
-        let new_len: usize = roundup(self.data.len(), self.multiplier);
-        let mut bytes = vec![Expr::const_byte(0u8); new_len + 32];
-        unsafe {
-            let counter = CONCOLIC_COUNTER;
-            CONCOLIC_COUNTER += 1;
-            let ptr = bytes.as_mut_ptr();
-            // here we assume the size of the dynamic data
-            // will not change. However, this may change as well
-            let mut rem: usize = self.data.len();
-            for i in 0..32 {
-                *ptr.add(31 - i) = Expr::const_byte((rem & 0xff) as u8);
-                rem >>= 8;
-            }
-            // set data
-            for i in 0..self.data.len() {
-                *ptr.add(i + 32) = Expr::sym_byte(format!("ADynamic_{}_{}", counter, i));
-            }
-        }
-        bytes
-    }
-
     fn get_size(&self) -> usize {
         self.data.len() + 32
     }
@@ -727,16 +652,6 @@ pub struct AArray {
 impl Input for AArray {
     fn generate_name(&self, idx: usize) -> String {
         format!("AArray_{}", idx)
-    }
-}
-
-fn set_size_concolic(bytes: *mut Box<Expr>, len: usize) {
-    let mut rem: usize = len;
-    unsafe {
-        for i in 0..32 {
-            *bytes.add(31 - i) = Expr::const_byte((rem & 0xff) as u8);
-            rem >>= 8;
-        }
     }
 }
 
@@ -861,105 +776,6 @@ impl ABI for AArray {
         }
     }
 
-    fn get_concolic(&self) -> Vec<Box<Expr>> {
-        let mut tail_data: Vec<Vec<u8>> = Vec::new();
-        let mut tails_offset: Vec<usize> = Vec::new();
-        let mut head: Vec<Vec<u8>> = Vec::new();
-        let mut head_data: Vec<Vec<u8>> = Vec::new();
-        let mut head_size: usize = 0;
-        let dummy_bytes: Vec<u8> = vec![0; 0];
-        for i in 0..self.data.len() {
-            if self.data[i].is_static() {
-                let encoded = self.data[i].get_bytes_vec();
-                head_size += encoded.len();
-                head.push(encoded);
-                tail_data.push(dummy_bytes.clone());
-            } else {
-                tail_data.push(self.data[i].get_bytes_vec());
-                head.push(dummy_bytes.clone());
-                head_size += 32;
-            }
-        }
-        let mut content_size: usize = 0;
-        tails_offset.push(0);
-        let mut head_data_size: usize = 0;
-        let mut tail_data_size: usize = 0;
-        if !tail_data.is_empty() {
-            (0..tail_data.len() - 1).for_each(|i| {
-                content_size += tail_data[i].len();
-                tails_offset.push(content_size);
-            });
-            for i in 0..tails_offset.len() {
-                if head[i].is_empty() {
-                    head_data.push(vec![0; 32]);
-                    head_data_size += 32;
-                    set_size(head_data[i].as_mut_ptr(), tails_offset[i] + head_size);
-                } else {
-                    head_data.push(head[i].clone());
-                    head_data_size += head[i].len();
-                }
-            }
-            tail_data_size = content_size + tail_data[tail_data.len() - 1].len();
-        }
-        let mut bytes =
-            vec![
-                Expr::const_byte(0);
-                head_data_size + tail_data_size + if self.dynamic_size { 32 } else { 0 }
-            ];
-
-        if self.dynamic_size {
-            set_size_concolic(bytes.as_mut_ptr(), self.data.len());
-        }
-        let mut offset: usize = if self.dynamic_size { 32 } else { 0 };
-        for i in 0..head_data.len() {
-            if self.data[i].is_static() {
-                unsafe {
-                    let counter = CONCOLIC_COUNTER;
-
-                    CONCOLIC_COUNTER += 1;
-                    for j in 0..head_data[i].len() {
-                        bytes[offset + j] = Expr::sym_byte(format!(
-                            "{}_{}_{}_{}",
-                            counter,
-                            self.data[i].get_type_str(),
-                            i,
-                            j
-                        ));
-                    }
-                }
-            } else {
-                bytes[offset..offset + head_data[i].len()].clone_from_slice(
-                    head_data[i]
-                        .iter()
-                        .map(|x| Expr::const_byte(*x))
-                        .collect_vec()
-                        .as_slice(),
-                );
-            }
-            offset += head_data[i].len();
-        }
-        (0..tail_data.len()).for_each(|i| {
-            if !tail_data[i].is_empty() {
-                unsafe {
-                    let counter = CONCOLIC_COUNTER;
-
-                    CONCOLIC_COUNTER += 1;
-                    for j in 0..tail_data[i].len() {
-                        bytes[offset + j] = Expr::sym_byte(format!(
-                            "{}_{}_{}_{}",
-                            counter,
-                            self.data[i].get_type_str(),
-                            i,
-                            j
-                        ));
-                    }
-                }
-                offset += tail_data[i].len();
-            }
-        });
-        bytes
-    }
-
     fn get_size(&self) -> usize {
         let data_size = self.data.iter().map(|x| x.b.get_size()).sum::<usize>();
         if self.dynamic_size {
@@ -1008,10 +824,6 @@ impl ABI for AUnknown {
 
     fn as_any(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn get_concolic(&self) -> Vec<Box<Expr>> {
-        panic!("[Concolic] sAUnknown not supported")
     }
 
     fn get_size(&self) -> usize {

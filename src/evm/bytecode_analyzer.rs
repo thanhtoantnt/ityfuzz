@@ -7,10 +7,7 @@ use revm_interpreter::opcode::JUMPI;
 use revm_primitives::Bytecode;
 use std::collections::HashSet;
 
-/// Find all constants in the bytecode by observing PUSH instructions.
-///
-/// Check tests below for usage.
-pub fn find_constants(bytecode: &Bytecode) -> HashSet<Vec<u8>> {
+fn find_constants(bytecode: &Bytecode) -> HashSet<Vec<u8>> {
     let bytecode_len = bytecode.len();
     let mut constants = HashSet::new();
     let bytes = bytecode.bytes();
@@ -41,8 +38,6 @@ pub fn find_constants(bytecode: &Bytecode) -> HashSet<Vec<u8>> {
     constants
 }
 
-/// Add constants in smart contract to the global state's [`ConstantPoolMetadata`]
-/// this can be costly, ensure sampling to be cheap
 pub fn add_analysis_result_to_state<S>(bytecode: &Bytecode, state: &mut S)
 where
     S: HasMetadata + State,

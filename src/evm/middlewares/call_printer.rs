@@ -22,7 +22,6 @@ use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
 use crate::state::{HasCaller, HasCurrentInputIdx, HasItyState};
 
-use crate::evm::blaz::builder::ArtifactInfoMetadata;
 use serde_json;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -155,17 +154,12 @@ where
     unsafe fn on_step(
         &mut self,
         interp: &mut Interpreter,
-        host: &mut FuzzHost<VS, I, S>,
-        state: &mut S,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
     ) {
         if self.entry {
             self.entry = false;
             let code_address = interp.contract.address;
-            let caller_code = host
-                .code
-                .get(&interp.contract.code_address)
-                .map(|code| Vec::from(code.bytecode()))
-                .unwrap_or(vec![]);
             self.results.data.push((self.current_layer, SingleCall {
                 call_type: CallType::FirstLevelCall,
                 caller: self.translate_address(interp.contract.caller),
@@ -175,13 +169,7 @@ where
                 source: if let Some(Some(source)) = self.sourcemaps.get(&code_address)
                     && let Some(source) = source.get(&interp.program_counter()) {
                     Some(source.clone())
-                } else if let Some(artifact) = state.metadata_mut().get_mut::<ArtifactInfoMetadata>() && let Some(build_result) = artifact.get_mut(&code_address) {
-                    if let Some(srcmap) = build_result.get_sourcemap(caller_code).get(&interp.program_counter()) {
-                        Some(srcmap.clone())
-                    } else {
-                        None
-                    }
-                } else {
+                }  else {
                     None
                 },
                 results: "".to_string(),
@@ -234,11 +222,6 @@ where
         let target = convert_u256_to_h160(address);
 
         let caller_code_address = interp.contract.code_address;
-        let caller_code = host
-            .code
-            .get(&interp.contract.code_address)
-            .map(|code| Vec::from(code.bytecode()))
-            .unwrap_or(vec![]);
 
         self.offsets = 0;
         self.results.data.push((self.current_layer, SingleCall {
@@ -250,12 +233,6 @@ where
             source: if let Some(Some(source)) = self.sourcemaps.get(&caller_code_address)
                 && let Some(source) = source.get(&interp.program_counter()) {
                 Some(source.clone())
-            } else if let Some(artifact) = state.metadata_mut().get_mut::<ArtifactInfoMetadata>() && let Some(build_result) = artifact.get_mut(&caller_code_address) {
-                if let Some(srcmap) = build_result.get_sourcemap(caller_code).get(&interp.program_counter()) {
-                    Some(srcmap.clone())
-                } else {
-                    None
-                }
             } else {
                 None
             },

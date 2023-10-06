@@ -33,7 +33,6 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use crate::dump_txn;
-use crate::evm::blaz::builder::BuildJobResult;
 use crate::input::ConciseSerde;
 use libafl::impl_serdeany;
 use libafl::prelude::HasMetadata;
@@ -62,7 +61,6 @@ pub struct EVMInitializationArtifacts {
     pub address_to_abi_object: HashMap<EVMAddress, Vec<BoxedABI>>,
     pub address_to_name: HashMap<EVMAddress, String>,
     pub initial_state: EVMStagedVMState,
-    pub build_artifacts: HashMap<EVMAddress, BuildJobResult>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -204,7 +202,6 @@ impl<'a> EVMCorpusInitializer<'a> {
             address_to_abi_object: Default::default(),
             address_to_name: Default::default(),
             initial_state: StagedVMState::new_uninitialized(),
-            build_artifacts: Default::default(),
         };
         for contract in &mut loader.contracts {
             if contract.abi.len() == 0 {
@@ -274,22 +271,6 @@ impl<'a> EVMCorpusInitializer<'a> {
             artifacts
                 .address_to_name
                 .insert(contract.deployed_address, name);
-
-            if let Some(build_artifact) = &contract.build_artifact {
-                artifacts
-                    .build_artifacts
-                    .insert(contract.deployed_address, build_artifact.clone());
-            }
-
-            #[cfg(feature = "flashloan_v2")]
-            {
-                handle_contract_insertion!(
-                    self.state,
-                    self.executor.host,
-                    contract.deployed_address,
-                    contract.abi.clone()
-                );
-            }
 
             for abi in contract.abi.clone() {
                 self.add_abi(

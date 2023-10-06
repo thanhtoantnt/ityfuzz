@@ -1,10 +1,7 @@
 use crate::evm::contract_utils::ContractLoader;
-
 use crate::oracle::Oracle;
 use std::cell::RefCell;
 use std::collections::HashSet;
-
-use crate::evm::blaz::builder::BuildJob;
 use std::rc::Rc;
 
 use crate::evm::types::EVMAddress;
@@ -44,14 +41,11 @@ impl FuzzerTypes {
 }
 
 pub struct Config<VS, Addr, Code, By, SlotTy, Out, I, S, CI> {
-    pub onchain_storage_fetching: Option<StorageFetchingMode>,
     pub concolic: bool,
     pub concolic_caller: bool,
     pub fuzzer_type: FuzzerTypes,
     pub contract_loader: ContractLoader,
     pub oracle: Vec<Rc<RefCell<dyn Oracle<VS, Addr, Code, By, SlotTy, Out, I, S, CI>>>>,
-    pub replay_file: Option<String>,
-    pub selfdestruct_oracle: bool,
     pub state_comp_oracle: Option<String>,
     pub state_comp_matching: Option<String>,
     pub work_dir: String,
@@ -66,5 +60,4 @@ pub struct Config<VS, Addr, Code, By, SlotTy, Out, I, S, CI> {
     pub typed_bug: bool,
     pub selfdestruct_bug: bool,
     pub arbitrary_external_call: bool,
-    pub builder: Option<BuildJob>,
 }

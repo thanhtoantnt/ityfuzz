@@ -1,7 +1,7 @@
 use crate::evm::input::{ConciseEVMInput, EVMInput};
 use crate::evm::oracle::EVMBugResult;
 
-use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx, ProjectSourceMapTy, EVMU256};
+use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx, EVMU256};
 use crate::evm::vm::EVMState;
 use crate::oracle::{Oracle, OracleCtx};
 use crate::state::HasExecutionResult;
@@ -13,25 +13,16 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-use crate::evm::blaz::builder::{ArtifactInfoMetadata, BuildJobResult};
 use crate::evm::oracles::TYPED_BUG_BUG_IDX;
 use itertools::Itertools;
-use libafl::state::HasMetadata;
 
 pub struct TypedBugOracle {
-    sourcemap: ProjectSourceMapTy,
     address_to_name: HashMap<EVMAddress, String>,
 }
 
 impl TypedBugOracle {
-    pub fn new(
-        sourcemap: ProjectSourceMapTy,
-        address_to_name: HashMap<EVMAddress, String>,
-    ) -> Self {
-        Self {
-            sourcemap,
-            address_to_name,
-        }
+    pub fn new(address_to_name: HashMap<EVMAddress, String>) -> Self {
+        Self { address_to_name }
     }
 }
 
@@ -82,17 +73,6 @@ impl
                         .clone();
 
                     let real_bug_idx = (hasher.finish() as u64) << 8 + TYPED_BUG_BUG_IDX;
-                    let srcmap = BuildJobResult::get_sourcemap_executor(
-                        ctx.fuzz_state
-                            .metadata_mut()
-                            .get_mut::<ArtifactInfoMetadata>()
-                            .expect("get metadata failed")
-                            .get_mut(addr),
-                        ctx.executor,
-                        addr,
-                        &self.sourcemap,
-                        *pc,
-                    );
                     EVMBugResult::new(
                         "typed_bug".to_string(),
                         real_bug_idx,
@@ -101,7 +81,7 @@ impl
                             ctx.input,
                             ctx.fuzz_state.get_execution_result(),
                         ),
-                        srcmap,
+                        None,
                         Some(name.clone()),
                     )
                     .push_to_output();

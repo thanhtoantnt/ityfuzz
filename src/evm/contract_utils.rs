@@ -16,9 +16,6 @@ use crate::evm::srcmap::parser::{decode_instructions, SourceMapLocation};
 use self::crypto::digest::Digest;
 use self::crypto::sha3::Sha3;
 
-use crate::evm::blaz::builder::BuildJobResult;
-use crate::evm::blaz::offchain_artifacts::OffChainArtifact;
-use crate::evm::blaz::offchain_config::OffchainConfig;
 use crate::evm::bytecode_iterator::all_bytecode;
 use revm_interpreter::opcode::PUSH4;
 use serde::{Deserialize, Serialize};
@@ -45,7 +42,6 @@ pub struct ContractInfo {
     pub constructor_args: Vec<u8>,
     pub deployed_address: EVMAddress,
     pub source_map: Option<HashMap<usize, SourceMapLocation>>,
-    pub build_artifact: Option<BuildJobResult>,
 }
 
 #[derive(Debug, Clone)]
@@ -206,7 +202,6 @@ impl ContractLoader {
                     )
                     .clone()
             }),
-            build_artifact: None,
         };
         let mut abi_result = ABIInfo {
             source: prefix.to_string(),
@@ -378,56 +373,6 @@ impl ContractLoader {
         }
 
         ContractLoader { contracts, abis }
-    }
-
-    pub fn from_config(
-        offchain_artifacts: &Vec<OffChainArtifact>,
-        offchain_config: &OffchainConfig,
-    ) -> Self {
-        let mut contracts: Vec<ContractInfo> = vec![];
-        let mut abis: Vec<ABIInfo> = vec![];
-        for (slug, contract_info) in &offchain_config.configs {
-            let mut more_info = None;
-            let mut sources = None;
-
-            for artifact in offchain_artifacts {
-                if artifact.contracts.contains_key(slug) {
-                    more_info = Some(artifact.contracts.get(slug).unwrap().clone());
-                    sources = Some(artifact.sources.clone()); // <- todo: this is not correct
-                    break;
-                }
-            }
-
-            let more_info = more_info.expect("Failed to find contract info");
-            let sources = sources.expect("Failed to find sources");
-            let abi = Self::parse_abi_str(&more_info.abi);
-
-            abis.push(ABIInfo {
-                source: format!("{}:{}", slug.0, slug.1),
-                abi: abi.clone(),
-            });
-
-            let constructor_args =
-                hex::decode(contract_info.constructor.clone()).expect("failed to decode hex");
-            contracts.push(ContractInfo {
-                name: format!("{}:{}", slug.0, slug.1),
-                code: [more_info.deploy_bytecode.to_vec(), constructor_args.clone()].concat(),
-                abi,
-                is_code_deployed: false,
-                constructor_args,
-                deployed_address: contract_info.address,
-                source_map: None,
-                build_artifact: Some(BuildJobResult::new(
-                    sources,
-                    more_info.source_map,
-                    more_info.deploy_bytecode,
-                    more_info.abi.clone(),
-                    more_info.source_map_replacements.clone(),
-                )),
-            })
-        }
-
-        Self { contracts, abis }
     }
 }
 

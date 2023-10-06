@@ -8,8 +8,7 @@ use crate::evm::host::FuzzHost;
 use crate::evm::input::{ConciseEVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::{Middleware, MiddlewareType};
 use crate::evm::srcmap::parser::{
-    pretty_print_source_map, pretty_print_source_map_single, SourceMapAvailability,
-    SourceMapWithCode,
+    pretty_print_source_map, SourceMapAvailability, SourceMapWithCode,
 };
 use itertools::Itertools;
 use libafl::inputs::Input;
@@ -21,7 +20,6 @@ use serde::Serialize;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::evm::blaz::builder::ArtifactInfoMetadata;
 use crate::evm::bytecode_iterator::all_bytecode;
 use crate::evm::types::{is_zero, EVMAddress, ProjectSourceMapTy};
 use crate::evm::vm::IN_DEPLOY;
@@ -336,54 +334,22 @@ where
         &mut self,
         bytecode: &mut Bytecode,
         address: EVMAddress,
-        host: &mut FuzzHost<VS, I, S>,
-        state: &mut S,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
     ) {
         let (pcs, jumpis, mut skip_pcs) = instructions_pc(&bytecode.clone());
 
-        // find all skipping PCs
-        let meta = state
-            .metadata_mut()
-            .get_mut::<ArtifactInfoMetadata>()
-            .expect("ArtifactInfoMetadata not found");
-        if let Some(build_artifact) = meta.get_mut(&address) {
-            self.sources.insert(address, build_artifact.sources.clone());
-
-            let sourcemap = build_artifact.get_sourcemap(if host.code.contains_key(&address) {
-                Vec::from(host.code.get(&address).unwrap().clone().bytecode())
-            } else {
-                host.setcode_data
-                    .get(&address)
-                    .unwrap()
-                    .clone()
-                    .bytecode
-                    .to_vec()
-            });
-
-            pcs.iter().for_each(|pc| {
-                match pretty_print_source_map_single(*pc, &sourcemap, &build_artifact.sources) {
-                    SourceMapAvailability::Available(s) => {
-                        self.pc_info.insert((address, *pc), s);
-                    }
-                    SourceMapAvailability::Unknown => {
-                        skip_pcs.insert(*pc);
-                    }
-                    SourceMapAvailability::Unavailable => {}
-                };
-            });
-        } else {
-            pcs.iter().for_each(|pc| {
-                match pretty_print_source_map(*pc, &address, &self.sourcemap) {
-                    SourceMapAvailability::Available(s) => {
-                        self.pc_info.insert((address, *pc), s);
-                    }
-                    SourceMapAvailability::Unknown => {
-                        skip_pcs.insert(*pc);
-                    }
-                    SourceMapAvailability::Unavailable => {}
-                };
-            });
-        }
+        pcs.iter().for_each(|pc| {
+            match pretty_print_source_map(*pc, &address, &self.sourcemap) {
+                SourceMapAvailability::Available(s) => {
+                    self.pc_info.insert((address, *pc), s);
+                }
+                SourceMapAvailability::Unknown => {
+                    skip_pcs.insert(*pc);
+                }
+                SourceMapAvailability::Unavailable => {}
+            };
+        });
 
         // total instr minus skipped pcs
         let total_instr = pcs

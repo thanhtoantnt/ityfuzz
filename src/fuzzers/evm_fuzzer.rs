@@ -1,8 +1,6 @@
 use crate::{
     evm::{
         abi::ABIAddressToInstanceMap,
-        blaz::builder::ArtifactInfoMetadata,
-        concolic::concolic_stage::ConcolicFeedbackWrapper,
         config::Config,
         contract_utils::FIX_DEPLOYER,
         corpus_initializer::EVMCorpusInitializer,
@@ -22,7 +20,7 @@ use crate::{
     },
     executor::FuzzExecutor,
     feedback::OracleFeedback,
-    fuzzer::{ItyFuzzer, REPLAY},
+    fuzzer::ItyFuzzer,
     oracle::BugMetadata,
     scheduler::SortedDroppingScheduler,
 };
@@ -90,13 +88,6 @@ pub fn evm_fuzzer(
     let mut evm_executor: EVMExecutor<EVMInput, EVMFuzzState, EVMState, ConciseEVMInput> =
         EVMExecutor::new(fuzz_host, deployer);
 
-    if config.replay_file.is_some() {
-        // add coverage middleware for replay
-        unsafe {
-            REPLAY = true;
-        }
-    }
-
     let mut corpus_initializer = EVMCorpusInitializer::new(
         &mut evm_executor,
         &mut scheduler,
@@ -128,18 +119,6 @@ pub fn evm_fuzzer(
     evm_executor.host.initialize(state);
 
     let evm_executor_ref = Rc::new(RefCell::new(evm_executor));
-    if !state.metadata().contains::<ArtifactInfoMetadata>() {
-        state.metadata_mut().insert(ArtifactInfoMetadata::new());
-    }
-
-    let meta = state
-        .metadata_mut()
-        .get_mut::<ArtifactInfoMetadata>()
-        .unwrap();
-
-    for (addr, build_artifact) in &artifacts.build_artifacts {
-        meta.add(*addr, build_artifact.clone());
-    }
 
     for (addr, bytecode) in &mut artifacts.address_to_bytecode {
         unsafe {
@@ -168,7 +147,6 @@ pub fn evm_fuzzer(
 
     if config.typed_bug {
         oracles.push(Rc::new(RefCell::new(TypedBugOracle::new(
-            artifacts.address_to_sourcemap.clone(),
             artifacts.address_to_name.clone(),
         ))));
     }
@@ -176,12 +154,12 @@ pub fn evm_fuzzer(
     state.add_metadata(BugMetadata::new());
 
     let objective = OracleFeedback::new(&mut oracles, evm_executor_ref.clone());
-    let wrapped_feedback = ConcolicFeedbackWrapper::new(Sha3WrappedFeedback::new(
+    let wrapped_feedback = Sha3WrappedFeedback::new(
         feedback,
         sha3_taint,
         evm_executor_ref.clone(),
         config.sha3_bypass,
-    ));
+    );
 
     let mut fuzzer = ItyFuzzer::new(
         scheduler,
