@@ -1,18 +1,13 @@
 use clap::Parser;
-use ethers::types::Transaction;
-use hex::{decode, encode};
+use ityfuzz::evm::blaz::builder::{BuildJob, BuildJobResult};
+use ityfuzz::evm::blaz::offchain_artifacts::OffChainArtifact;
+use ityfuzz::evm::blaz::offchain_config::OffchainConfig;
 use ityfuzz::evm::config::{Config, FuzzerTypes, StorageFetchingMode};
-use ityfuzz::evm::contract_utils::{set_hash, ContractLoader};
-use ityfuzz::evm::host::PANIC_ON_BUG;
+use ityfuzz::evm::contract_utils::ContractLoader;
 use ityfuzz::evm::input::{ConciseEVMInput, EVMInput};
-use ityfuzz::evm::middlewares::middleware::Middleware;
 use ityfuzz::evm::onchain::endpoints::{Chain, OnChainConfig};
-use ityfuzz::evm::onchain::flashloan::{DummyPriceOracle, Flashloan};
-use ityfuzz::evm::oracles::echidna::EchidnaOracle;
+use ityfuzz::evm::onchain::flashloan::DummyPriceOracle;
 use ityfuzz::evm::oracles::erc20::IERC20OracleFlashloan;
-use ityfuzz::evm::oracles::function::FunctionHarnessOracle;
-use ityfuzz::evm::oracles::selfdestruct::SelfdestructOracle;
-use ityfuzz::evm::oracles::typed_bug::TypedBugOracle;
 use ityfuzz::evm::oracles::v2_pair::PairBalanceOracle;
 use ityfuzz::evm::producers::erc20::ERC20Producer;
 use ityfuzz::evm::producers::pair::PairProducer;
@@ -20,66 +15,12 @@ use ityfuzz::evm::types::{EVMAddress, EVMFuzzState, EVMU256};
 use ityfuzz::evm::vm::EVMState;
 use ityfuzz::fuzzers::evm_fuzzer::evm_fuzzer;
 use ityfuzz::oracle::{Oracle, Producer};
-use ityfuzz::r#const;
 use ityfuzz::state::FuzzState;
-use serde::Deserialize;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::env;
 use std::rc::Rc;
 use std::str::FromStr;
-use ityfuzz::evm::blaz::builder::{BuildJob, BuildJobResult};
-use ityfuzz::evm::blaz::offchain_artifacts::OffChainArtifact;
-use ityfuzz::evm::blaz::offchain_config::OffchainConfig;
-
-
-pub fn parse_constructor_args_string(input: String) -> HashMap<String, Vec<String>> {
-    let mut map = HashMap::new();
-
-    if input.len() == 0 {
-        return map;
-    }
-
-    let pairs: Vec<&str> = input.split(';').collect();
-    for pair in pairs {
-        let key_value: Vec<&str> = pair.split(':').collect();
-        if key_value.len() == 2 {
-            let values: Vec<String> = key_value[1].split(',').map(|s| s.to_string()).collect();
-            map.insert(key_value[0].to_string(), values);
-        }
-    }
-
-    map
-}
-
-#[derive(Deserialize)]
-struct Data {
-    body: RPCCall,
-    response: serde_json::Value,
-}
-
-#[derive(Deserialize)]
-struct RPCCall {
-    method: String,
-    params: Option<serde_json::Value>,
-}
-
-#[derive(Deserialize)]
-struct Response {
-    data: ResponseData,
-}
-
-#[derive(Deserialize)]
-struct ResponseData {
-    id: u16,
-    result: TXResult,
-}
-
-#[derive(Deserialize)]
-struct TXResult {
-    input: String,
-}
 
 /// CLI for ItyFuzz for EVM smart contracts
 #[derive(Parser, Debug)]
@@ -263,7 +204,7 @@ enum EVMTargetType {
     Glob,
     Address,
     ArtifactAndProxy,
-    Config
+    Config,
 }
 
 pub fn evm_main(args: EvmArgs) {
@@ -320,15 +261,9 @@ pub fn evm_main(args: EvmArgs) {
     let pair_producer = Rc::new(RefCell::new(PairProducer::new()));
     let erc20_producer = Rc::new(RefCell::new(ERC20Producer::new()));
 
-    let mut flashloan_oracle = Rc::new(RefCell::new({
+    let flashloan_oracle = Rc::new(RefCell::new({
         IERC20OracleFlashloan::new(pair_producer.clone(), erc20_producer.clone())
     }));
-
-    // let harness_code = "oracle_harness()";
-    // let mut harness_hash: [u8; 4] = [0; 4];
-    // set_hash(harness_code, &mut harness_hash);
-    // let mut function_oracle =
-    //     FunctionHarnessOracle::new_no_condition(EVMAddress::zero(), Vec::from(harness_hash));
 
     let mut oracles: Vec<
         Rc<
@@ -343,7 +278,7 @@ pub fn evm_main(args: EvmArgs) {
                     Vec<u8>,
                     EVMInput,
                     EVMFuzzState,
-                    ConciseEVMInput
+                    ConciseEVMInput,
                 >,
             >,
         >,
@@ -362,7 +297,7 @@ pub fn evm_main(args: EvmArgs) {
                     Vec<u8>,
                     EVMInput,
                     EVMFuzzState,
-                    ConciseEVMInput
+                    ConciseEVMInput,
                 >,
             >,
         >,
@@ -389,44 +324,9 @@ pub fn evm_main(args: EvmArgs) {
     let is_onchain = onchain.is_some();
     let mut state: EVMFuzzState = FuzzState::new(args.seed);
 
-    let mut proxy_deploy_codes: Vec<String> = vec![];
+    let proxy_deploy_codes: Vec<String> = vec![];
 
-    if args.fetch_tx_data {
-        let response = reqwest::blocking::get(args.proxy_address)
-            .unwrap()
-            .text()
-            .unwrap();
-        let data: Vec<Data> = serde_json::from_str(&response).unwrap();
-
-        for d in data {
-            if d.body.method != "eth_sendRawTransaction" {
-                continue;
-            }
-
-            let tx = d.body.params.unwrap();
-
-            let params: Vec<String> = serde_json::from_value(tx).unwrap();
-
-            let data = params[0].clone();
-
-            let data = if data.starts_with("0x") {
-                &data[2..]
-            } else {
-                &data
-            };
-
-            let bytes_data = hex::decode(data).unwrap();
-
-            let transaction: Transaction = rlp::decode(&bytes_data).unwrap();
-
-            let code = hex::encode(transaction.input);
-
-            proxy_deploy_codes.push(code);
-        }
-    }
-
-    let constructor_args_map = parse_constructor_args_string(args.constructor_args);
-
+    let constructor_args_map = HashMap::new();
 
     let onchain_replacements = if args.onchain_replacements_file.len() > 0 {
         BuildJobResult::from_multi_file(args.onchain_replacements_file)
@@ -442,19 +342,31 @@ pub fn evm_main(args: EvmArgs) {
 
     let offchain_artifacts = if args.builder_artifacts_url.len() > 0 {
         target_type = EVMTargetType::ArtifactAndProxy;
-        Some(OffChainArtifact::from_json_url(args.builder_artifacts_url).expect("failed to parse builder artifacts"))
+        Some(
+            OffChainArtifact::from_json_url(args.builder_artifacts_url)
+                .expect("failed to parse builder artifacts"),
+        )
     } else if args.builder_artifacts_file.len() > 0 {
         target_type = EVMTargetType::ArtifactAndProxy;
-        Some(OffChainArtifact::from_file(args.builder_artifacts_file).expect("failed to parse builder artifacts"))
+        Some(
+            OffChainArtifact::from_file(args.builder_artifacts_file)
+                .expect("failed to parse builder artifacts"),
+        )
     } else {
         None
     };
     let offchain_config = if args.offchain_config_url.len() > 0 {
         target_type = EVMTargetType::Config;
-        Some(OffchainConfig::from_json_url(args.offchain_config_url).expect("failed to parse offchain config"))
+        Some(
+            OffchainConfig::from_json_url(args.offchain_config_url)
+                .expect("failed to parse offchain config"),
+        )
     } else if args.offchain_config_file.len() > 0 {
         target_type = EVMTargetType::Config;
-        Some(OffchainConfig::from_file(args.offchain_config_file).expect("failed to parse offchain config"))
+        Some(
+            OffchainConfig::from_file(args.offchain_config_file)
+                .expect("failed to parse offchain config"),
+        )
     } else {
         None
     };
@@ -462,20 +374,16 @@ pub fn evm_main(args: EvmArgs) {
     let config = Config {
         fuzzer_type: FuzzerTypes::from_str(args.fuzzer_type.as_str()).expect("unknown fuzzer"),
         contract_loader: match target_type {
-            EVMTargetType::Glob => {
-                ContractLoader::from_glob(
-                    args.target.as_str(),
-                    &mut state,
-                    &proxy_deploy_codes,
-                    &constructor_args_map,
-                )
-            }
-            EVMTargetType::Config => {
-                ContractLoader::from_config(
-                    &offchain_artifacts.expect("offchain artifacts is required for config target type"),
-                    &offchain_config.expect("offchain config is required for config target type"),
-                )
-            }
+            EVMTargetType::Glob => ContractLoader::from_glob(
+                args.target.as_str(),
+                &mut state,
+                &proxy_deploy_codes,
+                &constructor_args_map,
+            ),
+            EVMTargetType::Config => ContractLoader::from_config(
+                &offchain_artifacts.expect("offchain artifacts is required for config target type"),
+                &offchain_config.expect("offchain config is required for config target type"),
+            ),
 
             EVMTargetType::ArtifactAndProxy => {
                 // ContractLoader::from_artifacts_and_proxy(
@@ -512,12 +420,15 @@ pub fn evm_main(args: EvmArgs) {
                 ContractLoader::from_address(
                     &mut onchain.as_mut().unwrap(),
                     HashSet::from_iter(addresses),
-                     builder.clone(),
+                    builder.clone(),
                 )
             }
         },
         only_fuzz: if args.only_fuzz.len() > 0 {
-            args.only_fuzz.split(",").map(|s| EVMAddress::from_str(s).expect("failed to parse only fuzz")).collect()
+            args.only_fuzz
+                .split(",")
+                .map(|s| EVMAddress::from_str(s).expect("failed to parse only fuzz"))
+                .collect()
         } else {
             HashSet::new()
         },
@@ -570,25 +481,6 @@ pub fn evm_main(args: EvmArgs) {
 
     match config.fuzzer_type {
         FuzzerTypes::CMP => evm_fuzzer(config, &mut state),
-        // FuzzerTypes::BASIC => basic_fuzzer(config)
         _ => {}
     }
-    //
-    //     Some(v) => {
-    //         match v.as_str() {
-    //             "cmp" => {
-    //                 cmp_fuzzer(&String::from(args.target), args.target_contract);
-    //             }
-    //             "df" => {
-    //                 df_fuzzer(&String::from(args.target), args.target_contract);
-    //             }
-    //             _ => {
-    //                 println!("Fuzzer type not supported");
-    //             }
-    //         }
-    //     },
-    //     _ => {
-    //         df_fuzzer(&String::from(args.target), args.target_contract);
-    //     }
-    // }
 }
