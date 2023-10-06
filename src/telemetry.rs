@@ -1,8 +1,8 @@
 //! Providing telemetry for the fuzzing campaign
 
 pub use reqwest;
-use std::env;
-use std::fmt::format;
+
+
 use serde_json::json;
 
 pub static mut TELEMETRY_ENABLED: bool = true;

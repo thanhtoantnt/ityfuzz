@@ -1,36 +1,36 @@
-use crate::evm::bytecode_analyzer;
-use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT, EVMInputTy};
+
+use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::{
     add_corpus, CallMiddlewareReturn, Middleware, MiddlewareType,
 };
 use crate::evm::mutator::AccessPattern;
 
-use crate::evm::onchain::flashloan::register_borrow_txn;
-use crate::evm::onchain::flashloan::{Flashloan, FlashloanData};
+
+use crate::evm::onchain::flashloan::{Flashloan};
 use bytes::Bytes;
 use itertools::Itertools;
 use libafl::prelude::{HasCorpus, HasMetadata, HasRand, Scheduler};
 use libafl::state::State;
-use primitive_types::H256;
-use revm::db::BenchmarkDB;
-use revm_interpreter::InstructionResult::{Continue, ControlLeak, Return, Revert};
+
+
+use revm_interpreter::InstructionResult::{Continue, ControlLeak, Revert};
 
 use crate::evm::types::{
-    as_u64, bytes_to_u64, generate_random_address, is_zero, EVMAddress, EVMU256,
+    as_u64, generate_random_address, is_zero, EVMAddress, EVMU256,
 };
-use hex::FromHex;
+
 use revm::precompile::{Precompile, Precompiles};
 use revm_interpreter::analysis::to_analysed;
 use revm_interpreter::{
     BytecodeLocked, CallContext, CallInputs, CallScheme, Contract, CreateInputs, Gas, Host,
     InstructionResult, Interpreter, SelfDestructResult,
 };
-use revm_primitives::{Bytecode, Env, LatestSpec, Spec, B256};
+use revm_primitives::{Bytecode, Env, LatestSpec, B256};
 use std::cell::RefCell;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
-use std::fs::OpenOptions;
+
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::Write;
@@ -38,23 +38,23 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::evm::uniswap::{generate_uniswap_router_call, TokenContext};
+
+
 use crate::evm::vm::{
-    EVMState, PostExecutionCtx, SinglePostExecution, IN_DEPLOY, IS_FAST_CALL_STATIC,
+    EVMState, SinglePostExecution, IN_DEPLOY, IS_FAST_CALL_STATIC,
 };
-use crate::generic_vm::vm_executor::{ExecutionResult, GenericVM, MAP_SIZE};
+use crate::generic_vm::vm_executor::{MAP_SIZE};
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
 
 use crate::evm::abi::{get_abi_type_boxed, register_abi_instance};
 use crate::evm::contract_utils::extract_sig_from_contract;
 use crate::evm::corpus_initializer::ABIMap;
-use crate::evm::input::EVMInputTy::ArbitraryCallBoundedAddr;
+
 use crate::evm::onchain::abi_decompiler::fetch_abi_heimdall;
-use crate::handle_contract_insertion;
-use crate::state::{HasCaller, HasCurrentInputIdx, HasHashToAddress, HasItyState};
+
+use crate::state::{HasCaller, HasHashToAddress, HasItyState};
 use crate::state_input::StagedVMState;
 use revm_primitives::{
     BerlinSpec, ByzantiumSpec, FrontierSpec, HomesteadSpec, IstanbulSpec, LondonSpec, MergeSpec,
@@ -319,8 +319,8 @@ where
     /// custom spec id run_inspect
     pub fn run_inspect(
         &mut self,
-        mut interp: &mut Interpreter,
-        mut state: &mut S,
+        interp: &mut Interpreter,
+        state: &mut S,
     ) -> InstructionResult {
         match self.spec_id {
             SpecId::LATEST => interp.run_inspect::<S, FuzzHost<VS, I, S>, LatestSpec>(self, state),
@@ -364,7 +364,7 @@ where
 
     pub fn add_middlewares(&mut self, middlewares: Rc<RefCell<dyn Middleware<VS, I, S>>>) {
         self.middlewares_enabled = true;
-        let ty = middlewares.deref().borrow().get_type();
+        let _ty = middlewares.deref().borrow().get_type();
         self.middlewares.deref().borrow_mut().push(middlewares);
     }
 
@@ -443,7 +443,7 @@ where
         }
     }
 
-    pub fn set_codedata(&mut self, address: EVMAddress, mut code: Bytecode) {
+    pub fn set_codedata(&mut self, address: EVMAddress, code: Bytecode) {
         self.setcode_data.insert(address, code);
     }
 
@@ -478,9 +478,9 @@ where
 
     pub fn find_static_call_read_slot(
         &self,
-        address: EVMAddress,
-        data: Bytes,
-        state: &mut S,
+        _address: EVMAddress,
+        _data: Bytes,
+        _state: &mut S,
     ) -> Vec<EVMU256> {
         return vec![];
         // let call = Contract::new_with_context_not_cloned::<LatestSpec>(
@@ -599,7 +599,7 @@ where
             return middleware_result.unwrap();
         }
 
-        let mut input_seq = input.input.to_vec();
+        let input_seq = input.input.to_vec();
 
         if input.context.scheme == CallScheme::Call {
             // if calling sender, then definitely control leak
@@ -748,7 +748,7 @@ where
     fn call_precompile(
         &mut self,
         input: &mut CallInputs,
-        state: &mut S,
+        _state: &mut S,
     ) -> (InstructionResult, Gas, Bytes) {
         let precompile = self
             .precompiles
@@ -760,7 +760,7 @@ where
         };
         match out {
             Ok((_, data)) => (InstructionResult::Return, Gas::new(0), Bytes::from(data)),
-            Err(e) => (
+            Err(_e) => (
                 InstructionResult::PrecompileError,
                 Gas::new(0),
                 Bytes::new(),

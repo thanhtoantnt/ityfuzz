@@ -1,21 +1,21 @@
-use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
+use crate::evm::input::{ConciseEVMInput, EVMInput};
 use crate::evm::producers::pair::PairProducer;
-use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx, EVMU256, EVMU512};
-use crate::evm::uniswap::{liquidate_all_token, TokenContext};
+use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx, EVMU256};
+
 use crate::evm::vm::EVMState;
 use crate::oracle::Oracle;
 use crate::state::HasExecutionResult;
 use bytes::Bytes;
 use revm_primitives::Bytecode;
-use std::borrow::Borrow;
+
 use std::cell::RefCell;
-use std::collections::HashMap;
-use std::ops::Deref;
+
+
 use std::rc::Rc;
 use crate::evm::oracle::EVMBugResult;
 use crate::evm::oracles::ERC20_BUG_IDX;
 use crate::evm::producers::erc20::ERC20Producer;
-use crate::fuzzer::ORACLE_OUTPUT;
+
 
 pub struct IERC20OracleFlashloan {
     pub balance_of: Vec<u8>,

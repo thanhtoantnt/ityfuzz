@@ -3,21 +3,21 @@ use std::fmt::{Debug};
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::ops::AddAssign;
+
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use itertools::Itertools;
 use libafl::inputs::Input;
 use libafl::prelude::{HasCorpus, HasMetadata, State};
 use revm_interpreter::Interpreter;
-use revm_interpreter::opcode::{INVALID, JUMPDEST, JUMPI, REVERT, STOP};
+use revm_interpreter::opcode::{INVALID, JUMPDEST, JUMPI, STOP};
 use revm_primitives::Bytecode;
 use serde::Serialize;
 use crate::evm::host::FuzzHost;
-use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
+use crate::evm::input::{ConciseEVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::{Middleware, MiddlewareType};
-use crate::evm::srcmap::parser::{decode_instructions, pretty_print_source_map, pretty_print_source_map_single, SourceMapAvailability, SourceMapLocation, SourceMapWithCode};
-use crate::evm::srcmap::parser::SourceMapAvailability::Available;
+use crate::evm::srcmap::parser::{pretty_print_source_map, pretty_print_source_map_single, SourceMapAvailability, SourceMapWithCode};
+
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
 use crate::state::{HasCaller, HasCurrentInputIdx, HasItyState};
@@ -25,7 +25,7 @@ use crate::evm::types::{EVMAddress, is_zero, ProjectSourceMapTy};
 use crate::evm::vm::IN_DEPLOY;
 use serde_json;
 use crate::evm::blaz::builder::ArtifactInfoMetadata;
-use crate::evm::bytecode_iterator::{all_bytecode, walk_bytecode};
+use crate::evm::bytecode_iterator::{all_bytecode};
 
 pub static mut EVAL_COVERAGE: bool = false;
 
@@ -213,14 +213,14 @@ impl Coverage {
         let default_skipper = HashSet::new();
 
         for (addr, all_pcs) in &self.total_instr_set {
-            let mut name = self.address_to_name.get(addr).unwrap_or(&format!("{:?}", addr)).clone();
+            let name = self.address_to_name.get(addr).unwrap_or(&format!("{:?}", addr)).clone();
             report.files.insert(name.clone(), self.sources.get(addr).unwrap_or(&vec![]).clone());
             match self.pc_coverage.get_mut(addr) {
                 None => {}
                 Some(covered) => {
                     let skip_pcs = self.skip_pcs.get(addr).unwrap_or(&default_skipper);
                     // Handle Instruction Coverage
-                    let mut real_covered: HashSet<usize> = covered.difference(skip_pcs).cloned().collect();
+                    let real_covered: HashSet<usize> = covered.difference(skip_pcs).cloned().collect();
                     let uncovered_pc = all_pcs.difference(&real_covered).cloned().collect_vec();
                     report.coverage.insert(name.clone(), CoverageResult {
                         instruction_coverage: real_covered.len(),
@@ -280,8 +280,8 @@ impl<I, VS, S> Middleware<VS, I, S> for Coverage
     unsafe fn on_step(
         &mut self,
         interp: &mut Interpreter,
-        host: &mut FuzzHost<VS, I, S>,
-        state: &mut S,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
     ) {
         if IN_DEPLOY || !EVAL_COVERAGE {
             return;
@@ -305,7 +305,7 @@ impl<I, VS, S> Middleware<VS, I, S> for Coverage
             self.sources.insert(address, build_artifact.sources.clone());
 
             let sourcemap = build_artifact.get_sourcemap(
-                if (host.code.contains_key(&address)) {
+                if host.code.contains_key(&address) {
                     Vec::from(host.code.get(&address).unwrap().clone().bytecode())
                 } else {
                     host.setcode_data.get(&address).unwrap().clone().bytecode.to_vec()
@@ -350,8 +350,8 @@ impl<I, VS, S> Middleware<VS, I, S> for Coverage
 
 
 mod tests {
-    use bytes::Bytes;
-    use super::*;
+    
+    
 
     #[test]
     fn test_instructions_pc() {

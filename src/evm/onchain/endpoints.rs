@@ -13,7 +13,7 @@ use std::hash::{Hash, Hasher};
 use crate::evm::types::{EVMAddress, EVMU256};
 use revm_interpreter::analysis::to_analysed;
 use revm_primitives::bitvec::macros::internal::funty::Integral;
-use revm_primitives::{Bytecode, LatestSpec};
+use revm_primitives::{Bytecode};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::cell::RefCell;
@@ -1111,7 +1111,7 @@ impl OnChainConfig {
 }
 
 impl OnChainConfig {
-    fn fetch_token_price_uncached(&self, token_address: EVMAddress) -> Option<(u32, u32)> {
+    fn fetch_token_price_uncached(&self, _token_address: EVMAddress) -> Option<(u32, u32)> {
         panic!("not implemented");
     }
 }

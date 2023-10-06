@@ -10,7 +10,7 @@ use crate::state::{FuzzState, InfantStateState};
 use crate::state_input::StagedVMState;
 use bytes::Bytes;
 use libafl::prelude::{HasRand, RomuDuoJrRand};
-use primitive_types::{H160, H256};
+use primitive_types::{H160};
 use revm_primitives::{B160, Bytecode, U256};
 use libafl::prelude::Rand;
 use revm_primitives::ruint::aliases::U512;
@@ -53,7 +53,7 @@ pub fn convert_H160(v: [u8; 20]) -> H160 {
 
 /// convert U256 to H160 by taking the last 20 bytes
 pub fn convert_u256_to_h160(v: EVMU256) -> EVMAddress {
-    let mut data: [u8; 32] = v.to_be_bytes();
+    let data: [u8; 32] = v.to_be_bytes();
     EVMAddress::from_slice(&data[12..32])
 }
 
@@ -70,7 +70,7 @@ pub fn float_scale_to_u512(v: f64, decimals: u32) -> U512 {
 /// Generate a random H160 address.
 pub fn generate_random_address<S>(s: &mut S) -> EVMAddress where S: HasRand{
     let mut rand_seed: RomuDuoJrRand = RomuDuoJrRand::with_seed(s.rand_mut().next());
-    let mut address = EVMAddress::random_using(&mut rand_seed);
+    let address = EVMAddress::random_using(&mut rand_seed);
     address
 }
 
@@ -100,7 +100,7 @@ pub fn bytes_to_u64(v: &[u8]) -> u64 {
 }
 
 mod tests {
-    use crate::evm::types::{as_u64, EVMU256};
+    
 
     #[test]
     fn test_as_u64() {

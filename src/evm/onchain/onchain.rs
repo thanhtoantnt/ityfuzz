@@ -1,8 +1,8 @@
 use crate::evm::abi::{get_abi_type_boxed, register_abi_instance};
 use crate::evm::bytecode_analyzer;
 use crate::evm::config::StorageFetchingMode;
-use crate::evm::contract_utils::{ABIConfig, ContractLoader, extract_sig_from_contract};
-use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT, EVMInputTy};
+use crate::evm::contract_utils::{ContractLoader, extract_sig_from_contract};
+use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
 
 use crate::evm::host::FuzzHost;
 use crate::evm::middlewares::middleware::{add_corpus, Middleware, MiddlewareType};
@@ -11,7 +11,7 @@ use crate::evm::onchain::abi_decompiler::fetch_abi_heimdall;
 use crate::evm::onchain::endpoints::OnChainConfig;
 use crate::evm::vm::IS_FAST_CALL;
 use crate::generic_vm::vm_state::VMStateT;
-use crate::handle_contract_insertion;
+
 use crate::input::VMInputT;
 use crate::state::{HasCaller, HasItyState};
 use crate::state_input::StagedVMState;
@@ -26,13 +26,13 @@ use libafl::state::{HasRand, State};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
-use std::ops::Deref;
 
-use crate::evm::onchain::flashloan::register_borrow_txn;
+
+
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
-use bytes::Bytes;
+
 use itertools::Itertools;
 use revm_interpreter::Interpreter;
 use revm_primitives::Bytecode;
@@ -145,7 +145,7 @@ where
 pub fn keccak_hex(data: EVMU256) -> String {
     let mut hasher = Sha3::keccak256();
     let mut output = [0u8; 32];
-    let mut input: [u8; 32] = data.to_be_bytes();
+    let input: [u8; 32] = data.to_be_bytes();
     hasher.input(input.as_ref());
     hasher.result(&mut output);
     hex::encode(&output).to_string()
@@ -171,7 +171,7 @@ where
         host: &mut FuzzHost<VS, I, S>,
         state: &mut S,
     ) {
-        let pc = interp.program_counter();
+        let _pc = interp.program_counter();
         #[cfg(feature = "force_cache")]
         macro_rules! force_cache {
             ($ty: expr, $target: expr) => {
@@ -465,7 +465,7 @@ where
         }
     }
 
-    unsafe fn on_insert(&mut self, bytecode: &mut Bytecode, address: EVMAddress, host: &mut FuzzHost<VS, I, S>, state: &mut S) {
+    unsafe fn on_insert(&mut self, _bytecode: &mut Bytecode, _address: EVMAddress, _host: &mut FuzzHost<VS, I, S>, _state: &mut S) {
 
     }
 

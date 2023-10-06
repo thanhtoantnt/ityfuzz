@@ -6,7 +6,7 @@ use crate::{
     state_input::StagedVMState,
 };
 use std::collections::hash_map::DefaultHasher;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::fmt::Debug;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -34,17 +34,17 @@ use libafl::{
 
 use crate::evm::host::JMP_MAP;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 use std::hash::{Hash, Hasher};
 use itertools::Itertools;
 use libafl::prelude::HasRand;
-use primitive_types::H256;
-use serde_json::Value;
-use crate::evm::input::ConciseEVMInput;
-use crate::evm::vm::EVMState;
+
+
+
+
 use crate::input::ConciseSerde;
 use crate::oracle::BugMetadata;
-use crate::scheduler::{HasReportCorpus, HasVote};
+use crate::scheduler::{HasReportCorpus};
 use crate::telemetry::report_vulnerability;
 
 const STATS_TIMEOUT_DEFAULT: Duration = Duration::from_millis(100);
@@ -466,7 +466,7 @@ where
                     Some((hash, new_fav_factor, old_testcase_idx)) => {
                         state.corpus_mut().remove(old_testcase_idx)?;
 
-                        let mut testcase = Testcase::new(input.clone());
+                        let testcase = Testcase::new(input.clone());
                         let new_testcase_idx = state.corpus_mut().add(testcase)?;
                         self.infant_scheduler.report_corpus(
                             state.get_infant_state_state(),

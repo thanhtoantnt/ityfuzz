@@ -13,12 +13,12 @@ use libafl::Error;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::evm::input::EVMInputTy::Borrow;
+
 use std::fmt::Debug;
 use revm_interpreter::Interpreter;
 use crate::evm::abi::ABIAddressToInstanceMap;
 use crate::evm::types::{convert_u256_to_h160, EVMAddress, EVMU256};
-use crate::evm::vm::{Constraint, EVMState, EVMStateT};
+use crate::evm::vm::{Constraint, EVMStateT};
 
 use crate::state::HasItyState;
 use crate::state_input::StagedVMState;

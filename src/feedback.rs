@@ -465,7 +465,7 @@ where
         OT: ObserversTuple<I0, S0>,
     {
         let mut cmp_interesting = false;
-        let mut cov_interesting = false;
+        let cov_interesting = false;
 
         // check if the current distance is smaller than the min_map
         for i in 0..MAP_SIZE {

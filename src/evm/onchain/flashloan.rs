@@ -3,12 +3,12 @@
 // when transfer, transferFrom, and src is our, return success, add owed
 // when transfer, transferFrom, and src is not our, return success, reduce owed
 
-use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT, EVMInputTy};
+use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::CallMiddlewareReturn::ReturnSuccess;
 use crate::evm::middlewares::middleware::{Middleware, MiddlewareOp, MiddlewareType};
 use crate::evm::mutator::AccessPattern;
-use crate::evm::onchain::endpoints::{OnChainConfig, PriceOracle};
-use std::borrow::BorrowMut;
+use crate::evm::onchain::endpoints::{PriceOracle};
+
 use revm_interpreter::Interpreter;
 use crate::evm::host::FuzzHost;
 use crate::generic_vm::vm_state::VMStateT;
@@ -24,16 +24,16 @@ use libafl::state::{HasMetadata, HasRand};
 use serde::{Deserialize, Serialize};
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+
 
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::ops::Deref;
 
-use crate::evm::contract_utils::ABIConfig;
-use crate::evm::onchain::onchain::OnChain;
-use crate::evm::oracles::erc20::IERC20OracleFlashloan;
-use crate::get_token_ctx;
+
+
+
+
+
 use std::rc::Rc;
 use std::str::FromStr;
 use std::time::Duration;
@@ -41,7 +41,7 @@ use revm_primitives::Bytecode;
 use crate::evm::types::{as_u64, EVMAddress, EVMU256, EVMU512};
 use crate::evm::types::convert_u256_to_h160;
 use crate::evm::types::float_scale_to_u512;
-use crate::evm::vm::IS_FAST_CALL_STATIC;
+
 
 macro_rules! scale {
     () => {
@@ -498,7 +498,7 @@ where
         }
     }
 
-    unsafe fn on_insert(&mut self, bytecode: &mut Bytecode, address: EVMAddress, host: &mut FuzzHost<VS, I, S>, state: &mut S) {
+    unsafe fn on_insert(&mut self, _bytecode: &mut Bytecode, _address: EVMAddress, _host: &mut FuzzHost<VS, I, S>, _state: &mut S) {
 
     }
 

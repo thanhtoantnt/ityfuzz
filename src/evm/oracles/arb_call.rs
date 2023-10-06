@@ -7,14 +7,14 @@ use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx, EVMU256, Project
 use crate::evm::vm::EVMState;
 use crate::oracle::{Oracle, OracleCtx};
 use bytes::Bytes;
-use itertools::Itertools;
+
 use libafl::impl_serdeany;
 use libafl::prelude::HasMetadata;
 use revm_primitives::{Bytecode, HashSet};
 use serde::{Deserialize, Serialize};
 use crate::evm::blaz::builder::{ArtifactInfoMetadata, BuildJobResult};
 use crate::evm::oracle::EVMBugResult;
-use crate::fuzzer::ORACLE_OUTPUT;
+
 use crate::state::HasExecutionResult;
 
 pub struct ArbitraryCallOracle {
@@ -55,7 +55,7 @@ Oracle<
     ConciseEVMInput
 > for ArbitraryCallOracle
 {
-    fn transition(&self, ctx: &mut EVMOracleCtx<'_>, stage: u64) -> u64 {
+    fn transition(&self, _ctx: &mut EVMOracleCtx<'_>, _stage: u64) -> u64 {
         0
     }
 
@@ -73,7 +73,7 @@ Oracle<
             EVMFuzzState,
             ConciseEVMInput
         >,
-        stage: u64,
+        _stage: u64,
     ) -> Vec<u64> {
         if ctx.post_state.arbitrary_calls.len() > 0 {
             let mut res = vec![];
@@ -84,7 +84,7 @@ Oracle<
                     });
                 }
 
-                let mut metadata = ctx.fuzz_state.metadata_mut().get_mut::<ArbitraryCallMetadata>().unwrap();
+                let metadata = ctx.fuzz_state.metadata_mut().get_mut::<ArbitraryCallMetadata>().unwrap();
                 let entry = metadata.known_calls.entry((*caller, *pc)).or_insert(HashSet::new());
                 if entry.len() > 3 {
                     continue;
@@ -96,7 +96,7 @@ Oracle<
                 pc.hash(&mut hasher);
                 let real_bug_idx = (hasher.finish() as u64) << 8 + ARB_CALL_BUG_IDX;
 
-                let mut name = self.address_to_name
+                let name = self.address_to_name
                     .get(caller)
                     .unwrap_or(&format!("{:?}", caller))
                     .clone();

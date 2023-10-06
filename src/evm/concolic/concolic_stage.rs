@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
-use libafl::{Error, Evaluator, Fuzzer, impl_serdeany};
+use libafl::{Error, Evaluator, impl_serdeany};
 use libafl::corpus::{Corpus, Testcase};
 use libafl::events::{EventFirer, ProgressReporter};
 use libafl::executors::ExitKind;
@@ -18,7 +18,7 @@ use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::MiddlewareType;
 use crate::evm::types::{EVMFuzzExecutor, EVMFuzzState};
 use crate::evm::vm::{EVMExecutor, EVMState};
-use crate::executor::FuzzExecutor;
+
 use crate::generic_vm::vm_executor::GenericVM;
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
@@ -28,7 +28,7 @@ pub struct ConcolicStage<OT> {
     pub allow_symbolic_addresses: bool,
     pub known_state_input: HashSet<(usize, usize)>,
     pub vm_executor: Rc<RefCell<EVMExecutor<EVMInput, EVMFuzzState, EVMState, ConciseEVMInput>>>,
-    pub phantom: std::marker::PhantomData<(OT)>,
+    pub phantom: std::marker::PhantomData<OT>,
 }
 
 impl <OT> ConcolicStage<OT> {
@@ -64,7 +64,7 @@ where Z: Evaluator<EVMFuzzExecutor<OT>, EM, EVMInput, EVMFuzzState>,
                executor: &mut EVMFuzzExecutor<OT>,
                state: &mut EVMFuzzState,
                manager: &mut EM,
-               corpus_idx: usize
+               _corpus_idx: usize
     ) -> Result<(), Error> {
         if !self.enabled {
             return Ok(());
@@ -117,7 +117,7 @@ where Z: Evaluator<EVMFuzzExecutor<OT>, EM, EVMInput, EVMFuzzState>,
         }
 
         {
-            let mut metadata = state.metadata_mut().get_mut::<ConcolicPrioritizationMetadata>().unwrap();
+            let metadata = state.metadata_mut().get_mut::<ConcolicPrioritizationMetadata>().unwrap();
             metadata.interesting_idx.clear();
 
             let mut testcases = vec![];
@@ -194,7 +194,7 @@ where F: Feedback<I, S> + Named + Debug,
         }
 
         let idx = state.corpus().count();
-        let mut meta = state
+        let meta = state
             .metadata_mut()
             .get_mut::<ConcolicPrioritizationMetadata>()
             .unwrap();

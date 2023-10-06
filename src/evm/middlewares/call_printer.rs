@@ -1,29 +1,29 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::fmt::{Debug};
-use std::fs;
+
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::ops::AddAssign;
-use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
+
+
+
 use bytes::Bytes;
 use itertools::Itertools;
 use libafl::inputs::Input;
 use libafl::prelude::{HasCorpus, HasMetadata, State};
 use revm_interpreter::Interpreter;
-use revm_interpreter::opcode::{INVALID, JUMPDEST, JUMPI, REVERT, STOP};
+
 use revm_primitives::Bytecode;
 use serde::{Deserialize, Serialize};
 use crate::evm::host::FuzzHost;
-use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
+use crate::evm::input::{ConciseEVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::{Middleware, MiddlewareType};
-use crate::evm::srcmap::parser::{decode_instructions, pretty_print_source_map, SourceMapAvailability, SourceMapLocation, SourceMapWithCode};
-use crate::evm::srcmap::parser::SourceMapAvailability::Available;
+use crate::evm::srcmap::parser::{SourceMapLocation};
+
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
 use crate::state::{HasCaller, HasCurrentInputIdx, HasItyState};
-use crate::evm::types::{as_u64, convert_u256_to_h160, EVMAddress, EVMU256, is_zero, ProjectSourceMapTy};
-use crate::evm::vm::IN_DEPLOY;
+use crate::evm::types::{as_u64, convert_u256_to_h160, EVMAddress, EVMU256, ProjectSourceMapTy};
+
 use serde_json;
 use crate::evm::blaz::builder::ArtifactInfoMetadata;
 
@@ -271,9 +271,9 @@ impl<I, VS, S> Middleware<VS, I, S> for CallPrinter
 
     unsafe fn on_return(
         &mut self,
-        interp: &mut Interpreter,
-        host: &mut FuzzHost<VS, I, S>,
-        state: &mut S,
+        _interp: &mut Interpreter,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
         by: &Bytes
     ) {
         self.offsets += 1;
@@ -284,7 +284,7 @@ impl<I, VS, S> Middleware<VS, I, S> for CallPrinter
         self.current_layer -= 1;
     }
 
-    unsafe fn on_insert(&mut self, bytecode: &mut Bytecode, address: EVMAddress, host: &mut FuzzHost<VS, I, S>, state: &mut S) {
+    unsafe fn on_insert(&mut self, _bytecode: &mut Bytecode, _address: EVMAddress, _host: &mut FuzzHost<VS, I, S>, _state: &mut S) {
 
     }
 

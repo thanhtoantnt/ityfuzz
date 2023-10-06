@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use itertools::Itertools;
-use serde_json;
-use revm;
-use revm_primitives::Bytecode;
+
+
+
 use serde::{Deserialize, Serialize};
 use crate::evm::types::{EVMAddress, ProjectSourceMapTy};
 
@@ -86,7 +86,7 @@ fn read_source_code(loc: &SourceMapLocation, file_blob: &Vec<(String, String)>) 
     } else {
         let mut file = match File::open(unsafe {BASE_PATH.clone()} + file_name.as_str()) {
             Ok(f) => f,
-            Err(e) => {
+            Err(_e) => {
                 return bad_file;
             }
         };
@@ -142,7 +142,7 @@ pub fn pretty_print_source_map_single(pc: usize, data: &HashMap<usize, SourceMap
     match data.get(&pc) {
         Some(info) => {
             match info.file {
-                Some(ref file) => {
+                Some(ref _file) => {
                     SourceMapAvailability::Available(read_source_code(info, file_blob))
                 }
                 None => SourceMapAvailability::Unknown
@@ -244,7 +244,7 @@ pub fn uncompress_srcmap_single(map: String, files: &Vec<String>, replacements: 
 
 pub fn decode_instructions(bytecode: Vec<u8>, map: String, files: &Vec<String>) -> HashMap<usize, SourceMapLocation> {
     let mut results: HashMap<usize, SourceMapLocation> = Default::default();
-    let mut uncompressed_map = uncompress_srcmap_single(map, files, &vec![]);
+    let uncompressed_map = uncompress_srcmap_single(map, files, &vec![]);
     let bytecode_len = bytecode.len();
 
     let mut idx = 0;
@@ -280,7 +280,7 @@ pub fn decode_instructions(bytecode: Vec<u8>, map: String, files: &Vec<String>) 
 
 pub fn decode_instructions_with_replacement(bytecode: Vec<u8>, replacements: &Vec<(String, String)>, map: String, files: &Vec<String>) -> HashMap<usize, SourceMapLocation> {
     let mut results: HashMap<usize, SourceMapLocation> = Default::default();
-    let mut uncompressed_map = uncompress_srcmap_single(map, files, replacements);
+    let uncompressed_map = uncompress_srcmap_single(map, files, replacements);
     let bytecode_len = bytecode.len();
 
     let mut idx = 0;
@@ -316,7 +316,7 @@ pub fn decode_instructions_with_replacement(bytecode: Vec<u8>, replacements: &Ve
 
 
 mod tests {
-    use super::*;
+    
 
 
     #[test]

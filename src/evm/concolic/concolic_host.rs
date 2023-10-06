@@ -1,16 +1,16 @@
 use bytes::Bytes;
 
 use crate::evm::abi::BoxedABI;
-use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT, EVMInputTy};
+use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::MiddlewareType::Concolic;
-use crate::evm::middlewares::middleware::{add_corpus, Middleware, MiddlewareType};
+use crate::evm::middlewares::middleware::{Middleware, MiddlewareType};
 
 use crate::evm::host::{FuzzHost, JMP_MAP};
 use crate::generic_vm::vm_executor::MAP_SIZE;
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
 use crate::state::{HasCaller, HasCurrentInputIdx, HasItyState};
-use either::Either;
+
 use libafl::prelude::{Corpus, HasMetadata, Input};
 
 use libafl::state::{HasCorpus, State};
@@ -21,18 +21,18 @@ use revm_primitives::{Bytecode, HashMap};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug};
 use std::marker::PhantomData;
 use std::ops::{Add, Mul, Not, Sub};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+
 use itertools::Itertools;
 
 use z3::ast::{Bool, BV};
 use z3::{ast::Ast, Config, Context, Params, Solver};
 use crate::bv_from_u256;
 use crate::evm::concolic::concolic_stage::ConcolicPrioritizationMetadata;
-use crate::evm::concolic::expr::{ConcolicOp, Expr, simplify, simplify_concat_select};
+use crate::evm::concolic::expr::{ConcolicOp, Expr, simplify};
 use crate::evm::types::{as_u64, EVMAddress, EVMU256, is_zero};
 
 pub static mut CONCOLIC_MAP: [u8; MAP_SIZE] = [0; MAP_SIZE];
@@ -64,7 +64,7 @@ impl<'a> Solving<'a> {
         Solving {
             context,
             input: (*input).iter().enumerate().map(
-                |(idx, x)| {
+                |(_idx, x)| {
                     let bv = match &x.op {
                         ConcolicOp::SYMBYTE(name) => {
                             BV::new_const(context, name.clone(), 8)
@@ -660,7 +660,7 @@ impl<I, VS> ConcolicHost<I, VS> {
     }
 
     pub fn get_input_slice_from_ctx(&self, idx: usize, length: usize) -> Box<Expr> {
-        let mut data = self.ctxs.last().expect("no ctx").input_bytes.clone();
+        let data = self.ctxs.last().expect("no ctx").input_bytes.clone();
         let mut bytes = data[idx].clone();
         for i in idx + 1..idx + length {
             if i >= data.len() {
@@ -698,7 +698,7 @@ where
     unsafe fn on_step(
         &mut self,
         interp: &mut Interpreter,
-        host: &mut FuzzHost<VS, I, S>,
+        _host: &mut FuzzHost<VS, I, S>,
         state: &mut S,
     ) {
         macro_rules! fast_peek {
@@ -1323,15 +1323,15 @@ where
 
     unsafe fn on_return(
         &mut self,
-        interp: &mut Interpreter,
-        host: &mut FuzzHost<VS, I, S>,
-        state: &mut S,
-        by: &Bytes
+        _interp: &mut Interpreter,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
+        _by: &Bytes
     ) {
         self.pop_ctx();
     }
 
-    unsafe fn on_insert(&mut self, bytecode: &mut Bytecode, address: EVMAddress, host: &mut FuzzHost<VS, I, S>, state: &mut S) {
+    unsafe fn on_insert(&mut self, _bytecode: &mut Bytecode, _address: EVMAddress, _host: &mut FuzzHost<VS, I, S>, _state: &mut S) {
 
     }
 

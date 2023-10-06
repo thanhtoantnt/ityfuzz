@@ -1,22 +1,22 @@
 use crate::evm::input::{ConciseEVMInput, EVMInput};
-use crate::evm::oracle::{dummy_precondition, EVMBugResult};
-use crate::evm::producers::pair::PairProducer;
-use crate::evm::types::{bytes_to_u64, EVMAddress, EVMFuzzState, EVMOracleCtx, EVMU256};
+use crate::evm::oracle::{EVMBugResult};
+
+use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx, EVMU256};
 use crate::evm::vm::EVMState;
-use crate::oracle::{Oracle, OracleCtx, Producer};
+use crate::oracle::{Oracle, OracleCtx};
 use crate::state::HasExecutionResult;
 use bytes::Bytes;
 use revm_primitives::Bytecode;
-use std::borrow::Borrow;
-use std::cell::RefCell;
-use std::collections::hash_map::DefaultHasher;
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
-use std::ops::Deref;
-use std::rc::Rc;
+
+
+
+
+
+
+
 use crate::evm::host::STATE_CHANGE;
 use crate::evm::oracles::{STATE_COMP_BUG_IDX};
-use crate::fuzzer::ORACLE_OUTPUT;
+
 use crate::generic_vm::vm_state::VMStateT;
 
 pub enum StateCompMatching {
@@ -71,7 +71,7 @@ for StateCompOracle
             EVMFuzzState,
             ConciseEVMInput
         >,
-        stage: u64,
+        _stage: u64,
     ) -> Vec<u64> {
 
         let comp = |state1: &EVMState, state2: &EVMState| -> bool {

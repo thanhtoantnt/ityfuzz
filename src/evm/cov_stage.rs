@@ -1,33 +1,33 @@
 use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
-use std::fmt::Debug;
+
 use std::fs;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::Arc;
+
 use itertools::Itertools;
-use libafl::{Error, Evaluator, Fuzzer, impl_serdeany};
-use libafl::corpus::{Corpus, Testcase};
-use libafl::events::{EventFirer, ProgressReporter};
-use libafl::executors::ExitKind;
-use libafl::feedbacks::Feedback;
-use libafl::inputs::Input;
-use libafl::prelude::{HasClientPerfMonitor, HasMetadata, Named, ObserversTuple, Stage};
+use libafl::{Error, Evaluator};
+use libafl::corpus::{Corpus};
+use libafl::events::{ProgressReporter};
+
+
+
+use libafl::prelude::{HasMetadata, ObserversTuple, Stage};
 use libafl::state::HasCorpus;
-use revm_primitives::HashSet;
-use serde::{Deserialize, Serialize};
-use crate::evm::concolic::concolic_host::{ConcolicHost, Field, Solution};
+
+
+
 use crate::evm::host::CALL_UNTIL;
-use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
+use crate::evm::input::{ConciseEVMInput, EVMInput};
 use crate::evm::middlewares::call_printer::CallPrinter;
 use crate::evm::middlewares::coverage::{Coverage, EVAL_COVERAGE};
 use crate::evm::middlewares::middleware::MiddlewareType;
 use crate::evm::types::{EVMFuzzExecutor, EVMFuzzState, EVMStagedVMState};
 use crate::evm::vm::{EVMExecutor, EVMState};
-use crate::executor::FuzzExecutor;
+
 use crate::generic_vm::vm_executor::GenericVM;
-use crate::generic_vm::vm_state::VMStateT;
-use crate::input::VMInputT;
+
+
 use crate::oracle::BugMetadata;
 use crate::state::HasInfantStateState;
 
@@ -37,7 +37,7 @@ pub struct CoverageStage<OT> {
     coverage: Rc<RefCell<Coverage>>,
     call_printer: Rc<RefCell<CallPrinter>>,
     trace_dir: String,
-    pub phantom: std::marker::PhantomData<(OT)>,
+    pub phantom: std::marker::PhantomData<OT>,
 }
 
 impl <OT> CoverageStage<OT> {
@@ -99,11 +99,11 @@ impl<EM, Z, OT> Stage<EVMFuzzExecutor<OT>, EM, EVMFuzzState, Z> for CoverageStag
           OT: ObserversTuple<EVMInput, EVMFuzzState>
 {
     fn perform(&mut self,
-               fuzzer: &mut Z,
-               executor: &mut EVMFuzzExecutor<OT>,
+               _fuzzer: &mut Z,
+               _executor: &mut EVMFuzzExecutor<OT>,
                state: &mut EVMFuzzState,
-               manager: &mut EM,
-               corpus_idx: usize
+               _manager: &mut EM,
+               _corpus_idx: usize
     ) -> Result<(), Error> {
         let total = state.corpus().count();
         if self.last_corpus_idx == total {

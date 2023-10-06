@@ -7,7 +7,7 @@ use crate::input::VMInputT;
 use crate::state::HasCaller;
 use libafl::state::State;
 use std::fmt::Debug;
-use std::ops::Deref;
+
 use crate::evm::types::EVMAddress;
 
 pub struct PairPreset;
@@ -22,7 +22,7 @@ where
         &self,
         function_sig: [u8; 4],
         input: &EVMInput,
-        evm_executor: &EVMExecutor<I, S, VS, ConciseEVMInput>,
+        _evm_executor: &EVMExecutor<I, S, VS, ConciseEVMInput>,
     ) -> Vec<EVMInput> {
         let mut res = vec![];
         match function_sig {

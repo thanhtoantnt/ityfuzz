@@ -6,7 +6,7 @@ use std::io::Read;
 use std::ops::Deref;
 use std::path::Path;
 use std::rc::Rc;
-use std::str::FromStr;
+
 use std::sync::Arc;
 
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
 use libafl::feedbacks::Feedback;
 use libafl::prelude::{HasMetadata, ShMemProvider};
 use libafl::prelude::{QueueScheduler, SimpleEventManager};
-use libafl::stages::{CalibrationStage, StdMutationalStage};
+use libafl::stages::{StdMutationalStage};
 use libafl::{
     prelude::{tuple_list, MaxMapFeedback, SimpleMonitor, StdMapObserver},
     Evaluator, Fuzzer,
@@ -30,24 +30,24 @@ use crate::evm::vm::EVMState;
 use crate::feedback::{CmpFeedback, DataflowFeedback, OracleFeedback};
 
 use crate::scheduler::SortedDroppingScheduler;
-use crate::state::{FuzzState, HasCaller, HasExecutionResult};
-use crate::state_input::StagedVMState;
+use crate::state::{HasExecutionResult};
+
 
 use crate::evm::config::Config;
 use crate::evm::corpus_initializer::EVMCorpusInitializer;
-use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT, EVMInputTy};
+use crate::evm::input::{ConciseEVMInput, EVMInput};
 
-use crate::evm::mutator::{AccessPattern, FuzzMutator};
+use crate::evm::mutator::{FuzzMutator};
 use crate::evm::onchain::flashloan::Flashloan;
 use crate::evm::onchain::onchain::{OnChain, WHITELIST_ADDR};
-use crate::evm::presets::pair::PairPreset;
+
 use crate::evm::types::{EVMAddress, EVMFuzzMutator, EVMFuzzState, EVMU256, fixed_address};
-use primitive_types::{H160, U256};
-use revm_primitives::{BlockEnv, Bytecode, Env};
-use revm_primitives::bitvec::view::BitViewSized;
+
+use revm_primitives::{Bytecode};
+
 use crate::evm::abi::ABIAddressToInstanceMap;
-use crate::evm::blaz::builder::{ArtifactInfoMetadata, BuildJob};
-use crate::evm::concolic::concolic_host::ConcolicHost;
+use crate::evm::blaz::builder::{ArtifactInfoMetadata};
+
 use crate::evm::concolic::concolic_stage::{ConcolicFeedbackWrapper, ConcolicStage};
 use crate::evm::cov_stage::CoverageStage;
 use crate::evm::feedbacks::Sha3WrappedFeedback;
@@ -62,7 +62,7 @@ use crate::evm::oracles::state_comp::StateCompOracle;
 use crate::evm::oracles::typed_bug::TypedBugOracle;
 use crate::evm::srcmap::parser::BASE_PATH;
 use crate::fuzzer::{REPLAY, RUN_FOREVER};
-use crate::input::{ConciseSerde, VMInputT};
+use crate::input::{ConciseSerde};
 use crate::oracle::BugMetadata;
 
 struct ABIConfig {
@@ -99,7 +99,7 @@ pub fn evm_fuzzer(
     let mut fuzz_host = FuzzHost::new(Arc::new(scheduler.clone()), config.work_dir.clone());
     fuzz_host.set_spec_id(config.spec_id);
 
-    let onchain_middleware = match config.onchain.clone() {
+    let _onchain_middleware = match config.onchain.clone() {
         Some(onchain) => {
             Some({
                 let mid = Rc::new(RefCell::new(
@@ -310,7 +310,7 @@ pub fn evm_fuzzer(
 
             artifacts.address_to_abi.iter()
                 .map(
-                    |(address, abis)| {
+                    |(_address, abis)| {
                         abis.iter().filter(
                             |abi| {
                                 abi.function_name.starts_with("echidna_")

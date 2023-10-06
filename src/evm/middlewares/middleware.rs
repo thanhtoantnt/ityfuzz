@@ -96,10 +96,10 @@ where
 
     unsafe fn on_return(
         &mut self,
-        interp: &mut Interpreter,
-        host: &mut FuzzHost<VS, I, S>,
-        state: &mut S,
-        ret: &Bytes
+        _interp: &mut Interpreter,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
+        _ret: &Bytes
     ) {}
 
     unsafe fn on_insert(&mut self,

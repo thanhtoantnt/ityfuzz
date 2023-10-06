@@ -1,16 +1,16 @@
 /// Configuration for the EVM fuzzer
-use crate::evm::contract_utils::{ContractInfo, ContractLoader};
+use crate::evm::contract_utils::{ContractLoader};
 use crate::evm::onchain::endpoints::{OnChainConfig, PriceOracle};
 
 use crate::evm::oracles::erc20::IERC20OracleFlashloan;
 use crate::oracle::{Oracle, Producer};
 use std::cell::RefCell;
 use std::collections::HashSet;
-use std::fs::File;
+
 use std::rc::Rc;
 use crate::evm::blaz::builder::BuildJob;
-use crate::evm::blaz::offchain_artifacts::OffChainArtifact;
-use crate::evm::blaz::offchain_config::OffchainConfig;
+
+
 use crate::evm::types::EVMAddress;
 
 pub enum FuzzerTypes {

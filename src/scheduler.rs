@@ -10,13 +10,13 @@ use libafl::{impl_serdeany, Error};
 
 use serde::{Deserialize, Serialize};
 
-use rand::random;
+
 use std::collections::HashMap;
 use std::fmt::Debug;
-use revm_primitives::HashSet;
-use serde::de::DeserializeOwned;
-use crate::generic_vm::vm_state::VMStateT;
-use crate::input::ConciseSerde;
+
+
+
+
 use crate::state::HasParent;
 
 /// A trait providing functions necessary for voting mechanisms
@@ -152,7 +152,7 @@ impl<I, S> HasReportCorpus<S> for SortedDroppingScheduler<I, S>
 {
     fn report_corpus(&self, state: &mut S, state_idx: usize) {
         self.vote(state, state_idx, 3);
-        let mut data = state.metadata_mut().get_mut::<VoteData>().unwrap();
+        let data = state.metadata_mut().get_mut::<VoteData>().unwrap();
 
         #[cfg(feature = "full_trace")]
         data.deps.mark_never_delete(state_idx);

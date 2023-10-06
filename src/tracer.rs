@@ -4,18 +4,18 @@
 use libafl::corpus::Corpus;
 
 use libafl::prelude::HasCorpus;
-use primitive_types::U256;
+
 use std::fmt::Debug;
 
-use crate::evm::abi::BoxedABI;
-use crate::generic_vm::vm_executor::ExecutionResult;
+
+
 use crate::generic_vm::vm_state::VMStateT;
-use crate::input::{ConciseSerde, VMInputT};
+use crate::input::{ConciseSerde};
 use crate::state::HasInfantStateState;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use crate::evm::types::EVMU256;
-use crate::state_input::StagedVMState;
+
+
 
 
 /// Represent a trace of transactions with starting VMState ID (from_idx).

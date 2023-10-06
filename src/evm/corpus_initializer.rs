@@ -2,8 +2,8 @@
 /// Add all potential calls with default args to the corpus
 use crate::evm::abi::{BoxedABI, get_abi_type_boxed};
 use crate::evm::bytecode_analyzer;
-use crate::evm::contract_utils::{ABIConfig, ABIInfo, ContractInfo, ContractLoader, extract_sig_from_contract};
-use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputTy};
+use crate::evm::contract_utils::{ABIConfig, ContractLoader, extract_sig_from_contract};
+use crate::evm::input::{ConciseEVMInput, EVMInput};
 use crate::evm::mutator::AccessPattern;
 
 use crate::evm::onchain::onchain::BLACKLIST_ADDR;
@@ -24,26 +24,26 @@ use crate::fuzzer::REPLAY;
 use crate::fuzzer::DUMP_FILE_COUNT;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::ops::Deref;
 
-use crate::evm::onchain::flashloan::register_borrow_txn;
-use crate::evm::presets::presets::Preset;
-use crate::evm::srcmap::parser::{SourceMapLocation};
+
+
+
+
 use hex;
 use itertools::Itertools;
 use std::rc::Rc;
 use std::time::Duration;
-use crypto::sha3::Sha3Mode::Keccak256;
+
 use libafl::impl_serdeany;
 use libafl::prelude::HasMetadata;
 use serde::{Deserialize, Serialize};
-use crate::{dump_file, dump_txn};
+use crate::{dump_txn};
 use std::fs::File;
 use std::path::Path;
 use crate::input::ConciseSerde;
 use std::io::Write;
 use crate::evm::blaz::builder::BuildJobResult;
-use crate::generic_vm::vm_executor::ExecutionResult;
+
 use crate::evm::types::EVMExecutionResult;
 use crate::evm::onchain::abi_decompiler::fetch_abi_heimdall;
 

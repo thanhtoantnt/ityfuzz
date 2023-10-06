@@ -13,7 +13,7 @@ use crate::evm::abi::BoxedABI;
 
 use crate::generic_vm::vm_state::VMStateT;
 use crate::state::{HasCaller, HasItyState};
-use primitive_types::U256;
+
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use crate::evm::types::EVMU256;

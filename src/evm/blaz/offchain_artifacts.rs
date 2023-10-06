@@ -3,7 +3,7 @@ use bytes::Bytes;
 use itertools::Itertools;
 use revm_primitives::HashMap;
 use serde_json::Value;
-use crate::evm::blaz::{get_client, is_bytecode_similar_lax, is_bytecode_similar_strict_ranking};
+use crate::evm::blaz::{get_client};
 use crate::evm::blaz::builder::BuildJobResult;
 
 #[derive(Clone, Debug)]
@@ -122,7 +122,7 @@ impl OffChainArtifact {
         Ok(artifacts)
     }
 
-    pub fn locate(existing_artifacts: &Vec<Self>, to_find: Vec<u8>) -> Option<BuildJobResult> {
+    pub fn locate(_existing_artifacts: &Vec<Self>, _to_find: Vec<u8>) -> Option<BuildJobResult> {
         todo!("locate artifact")
         // let mut candidates = vec![];
         // let mut all_candidates = vec![];

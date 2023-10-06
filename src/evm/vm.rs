@@ -1,22 +1,22 @@
 /// EVM executor implementation
 use itertools::Itertools;
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::{BorrowMut};
 use std::cell::RefCell;
-use std::cmp::{max, min};
+use std::cmp::{min};
 use std::collections::{HashMap, HashSet};
 
 use std::collections::hash_map::DefaultHasher;
-use std::fmt::{Debug, Formatter};
-use std::fs::OpenOptions;
+use std::fmt::{Debug};
+
 
 use std::hash::{Hash, Hasher};
-use std::io::Write;
+
 
 use std::marker::PhantomData;
 use std::ops::Deref;
 
 use std::rc::Rc;
-use std::str::FromStr;
+
 use std::sync::Arc;
 
 use crate::evm::types::{float_scale_to_u512, EVMU512};
@@ -25,34 +25,34 @@ use crate::state_input::StagedVMState;
 use bytes::Bytes;
 
 use libafl::prelude::{HasMetadata, HasRand};
-use libafl::schedulers::Scheduler;
+
 use libafl::state::{HasCorpus, State};
 
-use primitive_types::{H256, U512};
-use rand::random;
 
-use revm::db::BenchmarkDB;
+
+
+
 use revm_interpreter::{BytecodeLocked, CallContext, CallScheme, Contract, Gas, InstructionResult, Interpreter, Memory, Stack};
-use revm_interpreter::InstructionResult::{ArbitraryExternalCallAddressBounded, ControlLeak};
-use revm_primitives::{Bytecode, LatestSpec};
+use revm_interpreter::InstructionResult::{ControlLeak};
+use revm_primitives::{Bytecode};
 
 use core::ops::Range;
 use std::any::Any;
 
 use crate::evm::bytecode_analyzer;
 use crate::evm::host::{
-    FuzzHost, CMP_MAP, COVERAGE_NOT_CHANGED, JMP_MAP, READ_MAP, RET_OFFSET, RET_SIZE, STATE_CHANGE,
+    FuzzHost, CMP_MAP, COVERAGE_NOT_CHANGED, JMP_MAP, READ_MAP, STATE_CHANGE,
     WRITE_MAP,
 };
-use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT, EVMInputTy};
-use crate::evm::middlewares::middleware::{Middleware, MiddlewareType};
+use crate::evm::input::{ConciseEVMInput, EVMInputT};
+use crate::evm::middlewares::middleware::{Middleware};
 use crate::evm::onchain::flashloan::FlashloanData;
 use crate::evm::types::{EVMAddress, EVMU256};
-use crate::evm::uniswap::generate_uniswap_router_call;
+
 use crate::generic_vm::vm_executor::{ExecutionResult, GenericVM, MAP_SIZE};
 use crate::generic_vm::vm_state::VMStateT;
 use crate::invoke_middlewares;
-use crate::r#const::DEBUG_PRINT_PERCENT;
+
 use crate::state::{HasCaller, HasCurrentInputIdx, HasItyState};
 use serde::de::DeserializeOwned;
 use crate::evm::vm::Constraint::{NoLiquidation, Value};
@@ -478,7 +478,7 @@ where
         data: Bytes,
         input: &I,
         post_exec: Option<SinglePostExecution>,
-        mut state: &mut S,
+        state: &mut S,
         cleanup: bool,
     ) -> IntermediateExecutionResult {
         // Initial setups
@@ -503,7 +503,7 @@ where
         let mut repeats = input.get_repeat();
 
         // Get the bytecode
-        let mut bytecode = match self.host.code.get(&call_ctx.code_address) {
+        let bytecode = match self.host.code.get(&call_ctx.code_address) {
             Some(i) => i.clone(),
             None => {
                 println!(
@@ -548,7 +548,7 @@ where
 
         // Execute the contract for `repeats` times or until revert
         let mut r = InstructionResult::Stop;
-        for v in 0..repeats - 1 {
+        for _v in 0..repeats - 1 {
             // println!("repeat: {:?}", v);
             r = self.host.run_inspect(&mut interp, state);
             interp.stack.data.clear();
@@ -679,7 +679,7 @@ where
         loop {
             // Execute the transaction
             let exec_res = if is_step {
-                let mut post_exec = vm_state.post_execution.pop().unwrap().clone();
+                let post_exec = vm_state.post_execution.pop().unwrap().clone();
                 let mut local_res = None;
                 for mut pe in post_exec.pes {
                     // we need push the output of CALL instruction
@@ -1064,21 +1064,21 @@ where
 }
 
 mod tests {
-    use crate::evm::host::{FuzzHost, JMP_MAP};
-    use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputTy};
-    use crate::evm::mutator::AccessPattern;
-    use crate::evm::types::{generate_random_address, EVMFuzzState, EVMU256};
-    use crate::evm::vm::{EVMExecutor, EVMState};
-    use crate::generic_vm::vm_executor::{GenericVM, MAP_SIZE};
-    use crate::state::FuzzState;
-    use crate::state_input::StagedVMState;
-    use bytes::Bytes;
-    use libafl::prelude::{tuple_list, StdScheduler};
-    use revm_primitives::Bytecode;
-    use std::cell::RefCell;
-    use std::path::Path;
-    use std::rc::Rc;
-    use std::sync::Arc;
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     #[test]
     fn test_fuzz_executor() {

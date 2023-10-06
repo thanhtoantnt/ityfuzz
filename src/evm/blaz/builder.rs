@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
-use std::process::id;
+
 use std::rc::Rc;
 use std::str::FromStr;
 use std::thread::sleep;
@@ -12,10 +12,10 @@ use libafl::impl_serdeany;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use crate::evm::blaz::get_client;
-use crate::evm::host::FuzzHost;
+
 use crate::evm::input::{ConciseEVMInput, EVMInput};
-use crate::evm::onchain::endpoints::Chain;
-use crate::evm::srcmap::parser::{decode_instructions, decode_instructions_with_replacement, SourceMapLocation};
+
+use crate::evm::srcmap::parser::{decode_instructions_with_replacement, SourceMapLocation};
 use crate::evm::types::{EVMAddress, EVMFuzzState, ProjectSourceMapTy};
 use crate::evm::vm::{EVMExecutor, EVMState};
 use crate::generic_vm::vm_executor::GenericVM;

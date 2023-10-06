@@ -1,5 +1,5 @@
 use crate::evm::types::{
-    fixed_address, generate_random_address, EVMAddress, EVMFuzzMutator, EVMFuzzState,
+    fixed_address, generate_random_address, EVMAddress, EVMFuzzState,
 };
 /// Load contract from file system or remote
 use glob::glob;
@@ -7,11 +7,11 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 
-use crate::state::FuzzState;
+
 use itertools::Itertools;
 use std::io::Read;
 use std::path::Path;
-use bytes::Bytes;
+
 
 extern crate crypto;
 
@@ -21,9 +21,9 @@ use crate::evm::srcmap::parser::{decode_instructions, SourceMapLocation};
 
 use self::crypto::digest::Digest;
 use self::crypto::sha3::Sha3;
-use crate::evm::onchain::abi_decompiler::fetch_abi_heimdall;
-use hex::encode;
-use regex::Regex;
+
+
+
 use revm_interpreter::analysis::to_analysed;
 use revm_interpreter::opcode::PUSH4;
 use revm_primitives::Bytecode;
@@ -32,8 +32,8 @@ use crate::evm::blaz::builder::{BuildJob, BuildJobResult};
 use crate::evm::blaz::offchain_artifacts::OffChainArtifact;
 use crate::evm::blaz::offchain_config::OffchainConfig;
 use crate::evm::bytecode_iterator::all_bytecode;
-use crate::evm::host::FuzzHost;
-use crate::evm::vm::EVMExecutor;
+
+
 
 // to use this address, call rand_utils::fixed_address(FIX_DEPLOYER)
 pub static FIX_DEPLOYER: &str = "8b21e662154b4bbc1ec0754d0238875fe3d22fa6";
@@ -562,7 +562,7 @@ pub fn parse_combined_json(json: String) -> ContractsSourceMapInfo {
 
     for (contract_name, contract_info) in contracts {
         let splitter = contract_name.split(':').collect::<Vec<&str>>();
-        let file_name = splitter.iter().take(splitter.len() - 1).join(":");
+        let _file_name = splitter.iter().take(splitter.len() - 1).join(":");
         let contract_name = splitter.last().unwrap().to_string();
 
         let bin_runtime = contract_info["bin-runtime"]
@@ -611,9 +611,9 @@ pub fn extract_sig_from_contract(code: &str) -> Vec<[u8; 4]> {
 }
 
 mod tests {
-    use super::*;
-    use std::str::FromStr;
-    use crate::skip_cbor;
+    
+    
+    
 
     #[test]
     fn test_load() {

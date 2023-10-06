@@ -18,7 +18,7 @@ use libafl::state::{
     HasSolutions, State,
 };
 
-use primitive_types::H160;
+
 use serde::{Deserialize, Serialize};
 
 use crate::generic_vm::vm_executor::ExecutionResult;

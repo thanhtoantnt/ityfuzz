@@ -1,7 +1,7 @@
 use crate::evm::abi::{AEmpty, AUnknown, BoxedABI};
 use crate::mutation_utils::byte_mutator;
 use crate::evm::mutator::AccessPattern;
-use crate::evm::types::{EVMAddress, EVMExecutionResult, EVMStagedVMState, EVMU256, EVMU512};
+use crate::evm::types::{EVMAddress, EVMStagedVMState, EVMU256, EVMU512};
 use crate::evm::vm::EVMState;
 use crate::input::{ConciseSerde, VMInputT};
 use crate::state::{HasCaller, HasItyState};
@@ -11,7 +11,7 @@ use libafl::bolts::HasLen;
 use libafl::inputs::Input;
 use libafl::mutators::MutationResult;
 use libafl::prelude::{HasBytesVec, HasMaxSize, HasMetadata, HasRand, Rand, State};
-use primitive_types::U512;
+
 use revm_primitives::Env;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -406,7 +406,7 @@ macro_rules! impl_env_mutator_u256 {
             } else {
                 None
             };
-            let mut input_by: [u8; 32] = input.get_vm_env().$loc.$item.to_be_bytes();
+            let input_by: [u8; 32] = input.get_vm_env().$loc.$item.to_be_bytes();
             let mut input_vec = input_by.to_vec();
             let mut wrapper = MutatorInput::new(&mut input_vec);
             let res = byte_mutator(state_, &mut wrapper, vm_slots);
@@ -545,7 +545,7 @@ impl EVMInput {
         } else {
             None
         };
-        let mut input_by: [u8; 32] = input
+        let input_by: [u8; 32] = input
             .get_txn_value()
             .unwrap_or(EVMU256::ZERO)
             .to_be_bytes();

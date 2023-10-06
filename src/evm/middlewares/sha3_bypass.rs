@@ -117,8 +117,8 @@ where
     unsafe fn on_step(
         &mut self,
         interp: &mut Interpreter,
-        host: &mut FuzzHost<VS, I, S>,
-        state: &mut S,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
     ) {
         //
         // println!("on_step: {:?} with {:x}", interp.program_counter(), *interp.instruction_pointer);
@@ -386,18 +386,18 @@ where
     }
 
     unsafe fn on_return(
-        &mut self, interp: &mut Interpreter, host: &mut FuzzHost<VS, I, S>, state: &mut S,
-        by: &Bytes
+        &mut self, _interp: &mut Interpreter, _host: &mut FuzzHost<VS, I, S>, _state: &mut S,
+        _by: &Bytes
     ) {
         self.pop_ctx();
     }
 
     unsafe fn on_insert(
         &mut self,
-        bytecode: &mut Bytecode,
-        address: EVMAddress,
-        host: &mut FuzzHost<VS, I, S>,
-        state: &mut S,
+        _bytecode: &mut Bytecode,
+        _address: EVMAddress,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
     ) {
     }
 
@@ -434,7 +434,7 @@ where
         &mut self,
         interp: &mut Interpreter,
         host: &mut FuzzHost<VS, I, S>,
-        state: &mut S,
+        _state: &mut S,
     ) {
         if *interp.instruction_pointer == JUMPI {
             let jumpi = interp.program_counter();
@@ -453,10 +453,10 @@ where
 
     unsafe fn on_insert(
         &mut self,
-        bytecode: &mut Bytecode,
-        address: EVMAddress,
-        host: &mut FuzzHost<VS, I, S>,
-        state: &mut S,
+        _bytecode: &mut Bytecode,
+        _address: EVMAddress,
+        _host: &mut FuzzHost<VS, I, S>,
+        _state: &mut S,
     ) {
     }
 
@@ -468,7 +468,7 @@ where
 
 mod tests {
     use super::*;
-    use crate::evm::input::{EVMInput, EVMInputTy};
+    use crate::evm::input::{EVMInput};
     use crate::evm::mutator::AccessPattern;
     use crate::evm::types::{generate_random_address, EVMFuzzState};
     use crate::evm::vm::{EVMExecutor, EVMState};
@@ -478,7 +478,7 @@ mod tests {
     use bytes::Bytes;
     use libafl::schedulers::StdScheduler;
     use revm_interpreter::analysis::to_analysed;
-    use revm_interpreter::opcode::{ADD, EQ, JUMPDEST, JUMPI, MSTORE, PUSH0, PUSH1, SHA3, STOP};
+    
     use revm_interpreter::BytecodeLocked;
     use std::cell::RefCell;
     use std::path::Path;
@@ -531,7 +531,7 @@ mod tests {
             .borrow()
             .tainted_jumpi
             .iter()
-            .map(|(addr, pc)| pc)
+            .map(|(_addr, pc)| pc)
             .cloned()
             .collect_vec();
     }

@@ -1,11 +1,11 @@
 use std::collections::hash_map::DefaultHasher;
-use std::error::Error;
+
 use crate::evm::contract_utils::ABIConfig;
 use heimdall::decompile::decompile_with_bytecode;
 use heimdall::decompile::out::solidity::ABIStructure;
-use std::fs;
+
 use std::hash::{Hash, Hasher};
-use std::path::Path;
+
 use crate::cache::{Cache, FileSystemCache};
 
 pub fn fetch_abi_heimdall(bytecode: String) -> Vec<ABIConfig> {
@@ -63,7 +63,7 @@ pub fn fetch_abi_heimdall(bytecode: String) -> Vec<ABIConfig> {
 }
 
 mod tests {
-    use super::*;
+    
 
     #[test]
     fn test_heimdall() {

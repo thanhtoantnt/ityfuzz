@@ -329,13 +329,13 @@ impl ConcatOptCtx {
 }
 
 fn simplify_concat_select_helper(expr: Box<Expr>) -> (ConcatOptCtx, Box<Expr>) {
-    let mut lhs_info = expr.lhs.map(|e| simplify_concat_select_helper(e));
-    let mut rhs_info = expr.rhs.map(|e| simplify_concat_select_helper(e));
-    let mut op = expr.op;
+    let lhs_info = expr.lhs.map(|e| simplify_concat_select_helper(e));
+    let rhs_info = expr.rhs.map(|e| simplify_concat_select_helper(e));
+    let op = expr.op;
     let mut new_expr = Box::new(
         Expr {
-            lhs: lhs_info.clone().map(|(ctx, e)| e),
-            rhs: rhs_info.clone().map(|(ctx, e)| e),
+            lhs: lhs_info.clone().map(|(_ctx, e)| e),
+            rhs: rhs_info.clone().map(|(_ctx, e)| e),
             op: op.clone(),
         }
     );

@@ -13,7 +13,7 @@ use serde::Serialize;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::rc::Rc;
-use crate::evm::input::EVMInput;
+
 
 use crate::generic_vm::vm_executor::GenericVM;
 use crate::generic_vm::vm_state::VMStateT;
