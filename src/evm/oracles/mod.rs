@@ -1,9 +1,3 @@
-pub mod arb_call;
-pub mod echidna;
-pub mod erc20;
-pub mod function;
-pub mod selfdestruct;
-pub mod state_comp;
 pub mod typed_bug;
 
 pub static ERC20_BUG_IDX: u64 = 0;

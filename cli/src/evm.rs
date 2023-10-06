@@ -7,7 +7,6 @@ use ityfuzz::evm::contract_utils::ContractLoader;
 use ityfuzz::evm::input::{ConciseEVMInput, EVMInput};
 use ityfuzz::evm::onchain::endpoints::{Chain, OnChainConfig};
 use ityfuzz::evm::onchain::flashloan::DummyPriceOracle;
-use ityfuzz::evm::oracles::erc20::IERC20OracleFlashloan;
 use ityfuzz::evm::producers::erc20::ERC20Producer;
 use ityfuzz::evm::producers::pair::PairProducer;
 use ityfuzz::evm::types::{EVMAddress, EVMFuzzState, EVMU256};
@@ -259,10 +258,6 @@ pub fn evm_main(args: EvmArgs) {
     let pair_producer = Rc::new(RefCell::new(PairProducer::new()));
     let erc20_producer = Rc::new(RefCell::new(ERC20Producer::new()));
 
-    let flashloan_oracle = Rc::new(RefCell::new({
-        IERC20OracleFlashloan::new(pair_producer.clone(), erc20_producer.clone())
-    }));
-
     let oracles: Vec<
         Rc<
             RefCell<
@@ -441,7 +436,6 @@ pub fn evm_main(args: EvmArgs) {
             None
         },
         replay_file: args.replay_file,
-        flashloan_oracle,
         selfdestruct_oracle: args.selfdestruct_oracle,
         state_comp_matching: if args.state_comp_oracle.len() > 0 {
             Some(args.state_comp_matching)

@@ -13,7 +13,6 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::ops::Deref;
 use std::rc::Rc;
 
 /// The context passed to the oracle
@@ -73,13 +72,6 @@ where
         }
     }
 
-    /// Conduct a batch of static calls on the state after the execution
-    pub(crate) fn call_post_batch(&mut self, data: &Vec<(Addr, By)>) -> Vec<Out> {
-        self.executor
-            .deref()
-            .borrow_mut()
-            .fast_static_call(data, &self.post_state, self.fuzz_state)
-    }
 }
 
 /// Producer trait provides functions needed to produce data for the oracle

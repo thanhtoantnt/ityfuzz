@@ -1,6 +1,5 @@
 use bytes::Bytes;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::ops::Deref;
@@ -14,7 +13,6 @@ use crate::{
     executor::FuzzExecutor, fuzzer::ItyFuzzer,
 };
 use glob::glob;
-use itertools::Itertools;
 use libafl::feedbacks::Feedback;
 use libafl::prelude::HasMetadata;
 use libafl::prelude::{QueueScheduler, SimpleEventManager};
@@ -56,10 +54,6 @@ use crate::evm::middlewares::call_printer::CallPrinter;
 use crate::evm::middlewares::coverage::{Coverage, EVAL_COVERAGE};
 use crate::evm::middlewares::middleware::Middleware;
 use crate::evm::middlewares::sha3_bypass::{Sha3Bypass, Sha3TaintAnalysis};
-use crate::evm::oracles::arb_call::ArbitraryCallOracle;
-use crate::evm::oracles::echidna::EchidnaOracle;
-use crate::evm::oracles::selfdestruct::SelfdestructOracle;
-use crate::evm::oracles::state_comp::StateCompOracle;
 use crate::evm::oracles::typed_bug::TypedBugOracle;
 use crate::evm::srcmap::parser::BASE_PATH;
 use crate::fuzzer::{REPLAY, RUN_FOREVER};
@@ -292,57 +286,6 @@ pub fn evm_fuzzer(
 
     let mut oracles = config.oracle;
 
-    if config.echidna_oracle {
-        let echidna_oracle = EchidnaOracle::new(
-            artifacts
-                .address_to_abi
-                .iter()
-                .map(|(address, abis)| {
-                    abis.iter()
-                        .filter(|abi| abi.function_name.starts_with("echidna_") && abi.abi == "()")
-                        .map(|abi| (address.clone(), abi.function.to_vec()))
-                        .collect_vec()
-                })
-                .flatten()
-                .collect_vec(),
-            artifacts
-                .address_to_abi
-                .iter()
-                .map(|(_address, abis)| {
-                    abis.iter()
-                        .filter(|abi| abi.function_name.starts_with("echidna_") && abi.abi == "()")
-                        .map(|abi| (abi.function.to_vec(), abi.function_name.clone()))
-                        .collect_vec()
-                })
-                .flatten()
-                .collect::<HashMap<Vec<u8>, String>>(),
-        );
-        oracles.push(Rc::new(RefCell::new(echidna_oracle)));
-    }
-
-    if let Some(path) = config.state_comp_oracle {
-        let mut file = File::open(path.clone()).expect("Failed to open state comp oracle file");
-        let mut buf = String::new();
-        file.read_to_string(&mut buf)
-            .expect("Failed to read state comp oracle file");
-
-        let evm_state = serde_json::from_str::<EVMState>(buf.as_str())
-            .expect("Failed to parse state comp oracle file");
-
-        let oracle = Rc::new(RefCell::new(StateCompOracle::new(
-            evm_state,
-            config.state_comp_matching.unwrap(),
-        )));
-        oracles.push(oracle);
-    }
-
-    if config.arbitrary_external_call {
-        oracles.push(Rc::new(RefCell::new(ArbitraryCallOracle::new(
-            artifacts.address_to_sourcemap.clone(),
-            artifacts.address_to_name.clone(),
-        ))));
-    }
-
     if config.typed_bug {
         oracles.push(Rc::new(RefCell::new(TypedBugOracle::new(
             artifacts.address_to_sourcemap.clone(),
@@ -351,13 +294,6 @@ pub fn evm_fuzzer(
     }
 
     state.add_metadata(BugMetadata::new());
-
-    if config.selfdestruct_oracle {
-        oracles.push(Rc::new(RefCell::new(SelfdestructOracle::new(
-            artifacts.address_to_sourcemap.clone(),
-            artifacts.address_to_name.clone(),
-        ))));
-    }
 
     let mut producers = config.producers;
 

@@ -5,7 +5,7 @@ use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::MiddlewareType::Concolic;
 use crate::evm::middlewares::middleware::{Middleware, MiddlewareType};
 
-use crate::evm::host::{FuzzHost, JMP_MAP};
+use crate::evm::host::FuzzHost;
 use crate::generic_vm::vm_executor::MAP_SIZE;
 use crate::generic_vm::vm_state::VMStateT;
 use crate::input::VMInputT;
@@ -21,19 +21,12 @@ use revm_primitives::{Bytecode, HashMap};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 
-use std::fmt::Debug;
-use std::marker::PhantomData;
-use std::ops::Not;
-use std::sync::Arc;
-
-use itertools::Itertools;
-
-use crate::bv_from_u256;
 use crate::evm::concolic::concolic_stage::ConcolicPrioritizationMetadata;
 use crate::evm::concolic::expr::{simplify, ConcolicOp, Expr};
 use crate::evm::types::{as_u64, is_zero, EVMAddress, EVMU256};
-use z3::ast::{Bool, BV};
-use z3::{ast::Ast, Config, Context, Params, Solver};
+use std::fmt::Debug;
+use std::marker::PhantomData;
+use std::sync::Arc;
 
 pub static mut CONCOLIC_MAP: [u8; MAP_SIZE] = [0; MAP_SIZE];
 
@@ -41,54 +34,6 @@ pub static mut CONCOLIC_MAP: [u8; MAP_SIZE] = [0; MAP_SIZE];
 pub enum Field {
     Caller,
     CallDataValue,
-}
-
-pub struct Solving<'a> {
-    context: &'a Context,
-    input: Vec<BV<'a>>,
-    balance: &'a BV<'a>,
-    calldatavalue: &'a BV<'a>,
-    caller: &'a BV<'a>,
-    constraints: &'a Vec<Box<Expr>>,
-    constrained_field: Vec<Field>,
-}
-
-impl<'a> Solving<'a> {
-    fn new(
-        context: &'a Context,
-        input: &'a Vec<Box<Expr>>,
-        balance: &'a BV<'a>,
-        calldatavalue: &'a BV<'a>,
-        caller: &'a BV<'a>,
-        constraints: &'a Vec<Box<Expr>>,
-    ) -> Self {
-        Solving {
-            context,
-            input: (*input)
-                .iter()
-                .enumerate()
-                .map(|(_idx, x)| {
-                    let bv = match &x.op {
-                        ConcolicOp::SYMBYTE(name) => BV::new_const(context, name.clone(), 8),
-                        ConcolicOp::CONSTBYTE(val) => BV::from_u64(context, *val as u64, 8),
-                        _ => unreachable!("input should be symbolic or concrete"),
-                    };
-                    bv
-                })
-                .collect_vec(),
-            balance,
-            calldatavalue,
-            caller,
-            constraints,
-            constrained_field: vec![],
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum SymbolicTy<'a> {
-    BV(BV<'a>),
-    Bool(Bool<'a>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,310 +53,6 @@ impl Solution {
         s
     }
 }
-
-impl<'a> SymbolicTy<'a> {
-    pub fn expect_bv(self) -> BV<'a> {
-        match self {
-            SymbolicTy::BV(bv) => bv,
-            _ => panic!("expected bv"),
-        }
-    }
-
-    pub fn expect_bool(self) -> Bool<'a> {
-        match self {
-            SymbolicTy::Bool(b) => b,
-            _ => panic!("expected bool"),
-        }
-    }
-}
-
-impl<'a> Solving<'a> {
-    pub fn slice_input(&self, start: u32, end: u32) -> BV<'a> {
-        let start = start as usize;
-        let end = end as usize;
-        let mut slice = self.input[start].clone();
-        for i in start + 1..end {
-            if i >= self.input.len() {
-                slice = slice.concat(&BV::from_u64(self.context, 0, 8));
-            } else {
-                slice = slice.concat(&self.input[i]);
-            }
-        }
-        slice
-    }
-
-    pub fn generate_z3_bv(&mut self, bv: &Expr, ctx: &'a Context) -> Option<SymbolicTy<'a>> {
-        macro_rules! binop {
-            ($lhs:expr, $rhs:expr, $op:ident) => {{
-                let l = self.generate_z3_bv($lhs.as_ref().unwrap(), ctx);
-                let r = self.generate_z3_bv($rhs.as_ref().unwrap(), ctx);
-
-                match (l, r) {
-                    (Some(SymbolicTy::BV(l)), Some(SymbolicTy::BV(r))) => {
-                        Some(SymbolicTy::BV(l.$op(&r)))
-                    }
-                    _ => None,
-                }
-            }};
-        }
-        // println!("generate_z3_bv: {:?}", bv);
-
-        macro_rules! comparisons2 {
-            ($lhs:expr, $rhs:expr, $op:ident) => {{
-                let lhs = self.generate_z3_bv($lhs.as_ref().unwrap(), ctx);
-                let rhs = self.generate_z3_bv($rhs.as_ref().unwrap(), ctx);
-                match (lhs, rhs) {
-                    (Some(SymbolicTy::BV(lhs)), Some(SymbolicTy::BV(rhs))) => {
-                        Some(SymbolicTy::Bool(lhs.$op(&rhs)))
-                    }
-                    (Some(SymbolicTy::Bool(lhs)), Some(SymbolicTy::Bool(rhs))) => {
-                        Some(SymbolicTy::Bool(lhs.$op(&rhs)))
-                    }
-                    _ => None,
-                }
-            }};
-        }
-
-        macro_rules! comparisons1 {
-            ($lhs:expr, $rhs:expr, $op:ident) => {{
-                let lhs = self.generate_z3_bv($lhs.as_ref().unwrap(), ctx);
-                let rhs = self.generate_z3_bv($rhs.as_ref().unwrap(), ctx);
-                match (lhs, rhs) {
-                    (Some(SymbolicTy::BV(lhs)), Some(SymbolicTy::BV(rhs))) => {
-                        Some(SymbolicTy::Bool(lhs.$op(&rhs)))
-                    }
-                    _ => None,
-                }
-            }};
-        }
-
-        match &bv.op {
-            ConcolicOp::EVMU256(constant) => Some(SymbolicTy::BV(bv_from_u256!(constant, ctx))),
-            ConcolicOp::ADD => binop!(bv.lhs, bv.rhs, bvadd),
-            ConcolicOp::DIV => binop!(bv.lhs, bv.rhs, bvudiv),
-            ConcolicOp::MUL => binop!(bv.lhs, bv.rhs, bvmul),
-            ConcolicOp::SUB => binop!(bv.lhs, bv.rhs, bvsub),
-            ConcolicOp::SDIV => binop!(bv.lhs, bv.rhs, bvsdiv),
-            ConcolicOp::SMOD => binop!(bv.lhs, bv.rhs, bvsmod),
-            ConcolicOp::UREM => binop!(bv.lhs, bv.rhs, bvurem),
-            ConcolicOp::SREM => binop!(bv.lhs, bv.rhs, bvsrem),
-            ConcolicOp::AND => binop!(bv.lhs, bv.rhs, bvand),
-            ConcolicOp::OR => binop!(bv.lhs, bv.rhs, bvor),
-            ConcolicOp::XOR => binop!(bv.lhs, bv.rhs, bvxor),
-            ConcolicOp::NOT => {
-                let lhs = self.generate_z3_bv(bv.lhs.as_ref().unwrap(), ctx);
-                match lhs {
-                    Some(SymbolicTy::BV(lhs)) => Some(SymbolicTy::BV(lhs.bvnot())),
-                    Some(SymbolicTy::Bool(lhs)) => Some(SymbolicTy::Bool(lhs.not())),
-                    _ => None,
-                }
-            }
-            ConcolicOp::SHL => binop!(bv.lhs, bv.rhs, bvshl),
-            ConcolicOp::SHR => binop!(bv.lhs, bv.rhs, bvlshr),
-            ConcolicOp::SAR => binop!(bv.lhs, bv.rhs, bvashr),
-            ConcolicOp::SLICEDINPUT(idx) => {
-                let idx = idx.as_limbs()[0] as u32;
-                let skv = self.slice_input(idx, idx + 32);
-                // println!("[concolic] SLICEDINPUT: {} {:?}", idx, skv);
-                Some(SymbolicTy::BV(skv))
-            }
-            ConcolicOp::BALANCE => Some(SymbolicTy::BV(self.balance.clone())),
-            ConcolicOp::CALLVALUE => {
-                self.constrained_field.push(Field::CallDataValue);
-                Some(SymbolicTy::BV(self.calldatavalue.clone()))
-            }
-            ConcolicOp::CALLER => {
-                self.constrained_field.push(Field::Caller);
-                Some(SymbolicTy::BV(self.caller.clone()))
-            }
-            ConcolicOp::FINEGRAINEDINPUT(start, end) => {
-                Some(SymbolicTy::BV(self.slice_input(*start, *end)))
-            }
-            ConcolicOp::LNOT => {
-                let lhs = self.generate_z3_bv(bv.lhs.as_ref().unwrap(), ctx);
-                match lhs {
-                    Some(SymbolicTy::BV(lhs)) => Some(SymbolicTy::BV(lhs.not())),
-                    Some(SymbolicTy::Bool(lhs)) => Some(SymbolicTy::Bool(lhs.not())),
-                    _ => None,
-                }
-            }
-            ConcolicOp::CONSTBYTE(b) => Some(SymbolicTy::BV(BV::from_u64(ctx, *b as u64, 8))),
-            ConcolicOp::SYMBYTE(s) => Some(SymbolicTy::BV(BV::new_const(ctx, s.clone(), 8))),
-            ConcolicOp::EQ => comparisons2!(bv.lhs, bv.rhs, _eq),
-            ConcolicOp::LT => comparisons1!(bv.lhs, bv.rhs, bvult),
-            ConcolicOp::SLT => comparisons1!(bv.lhs, bv.rhs, bvslt),
-            ConcolicOp::GT => comparisons1!(bv.lhs, bv.rhs, bvugt),
-            ConcolicOp::SGT => comparisons1!(bv.lhs, bv.rhs, bvsgt),
-            ConcolicOp::SELECT(high, low) => {
-                let lhs = self.generate_z3_bv(bv.lhs.as_ref().unwrap(), ctx);
-                match lhs {
-                    Some(SymbolicTy::BV(lhs)) => Some(SymbolicTy::BV(lhs.extract(*high, *low))),
-                    _ => None,
-                }
-            }
-
-            ConcolicOp::CONCAT => {
-                let lhs = self.generate_z3_bv(bv.lhs.as_ref().unwrap(), ctx);
-                let rhs = self.generate_z3_bv(bv.rhs.as_ref().unwrap(), ctx);
-                match (lhs, rhs) {
-                    (Some(SymbolicTy::BV(lhs)), Some(SymbolicTy::BV(rhs))) => {
-                        Some(SymbolicTy::BV(lhs.concat(&rhs)))
-                    }
-                    _ => None,
-                }
-            }
-        }
-    }
-
-    pub fn solve(&mut self) -> Vec<Solution> {
-        let context = self.context;
-        let solver = Solver::new(&context);
-        // println!("Constraints: {:?}", self.constraints);
-        for cons in self.constraints {
-            let bv = self.generate_z3_bv(&cons.lhs.as_ref().unwrap(), &context);
-
-            macro_rules! expect_bv_or_continue {
-                ($e: expr) => {
-                    if let Some(SymbolicTy::BV(bv)) = $e {
-                        bv
-                    } else {
-                        #[cfg(feature = "z3_debug")]
-                        println!("Failed to generate Z3 BV for {:?}", $e);
-                        continue;
-                    }
-                };
-            }
-
-            solver.assert(&match cons.op {
-                ConcolicOp::GT => expect_bv_or_continue!(bv).bvugt(&expect_bv_or_continue!(
-                    self.generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)
-                )),
-                ConcolicOp::SGT => expect_bv_or_continue!(bv).bvsgt(&expect_bv_or_continue!(
-                    self.generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)
-                )),
-                ConcolicOp::EQ => expect_bv_or_continue!(bv)._eq(&expect_bv_or_continue!(
-                    self.generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)
-                )),
-                ConcolicOp::LT => expect_bv_or_continue!(bv).bvult(&expect_bv_or_continue!(
-                    self.generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)
-                )),
-                ConcolicOp::SLT => expect_bv_or_continue!(bv).bvslt(&expect_bv_or_continue!(
-                    self.generate_z3_bv(&cons.rhs.as_ref().unwrap(), &context)
-                )),
-                ConcolicOp::LNOT => match bv {
-                    Some(SymbolicTy::BV(bv)) => bv._eq(&bv_from_u256!(EVMU256::ZERO, &context)),
-                    Some(SymbolicTy::Bool(bv)) => bv.not(),
-                    _ => {
-                        #[cfg(feature = "z3_debug")]
-                        println!("Failed to generate Z3 BV for {:?}", bv);
-                        continue;
-                    }
-                },
-                _ => {
-                    #[cfg(feature = "z3_debug")]
-                    println!("Unsupported constraint: {:?}", cons);
-                    continue;
-                }
-            });
-        }
-
-        // println!("Solver: {:?}", solver);
-        let mut p = Params::new(&context);
-        p.set_u32("timeout", 1000);
-        solver.set_params(&p);
-        let result = solver.check();
-        match result {
-            z3::SatResult::Sat => {
-                let model = solver.get_model().unwrap();
-                #[cfg(feature = "z3_debug")]
-                println!("Model: {:?}", model);
-                let input = self
-                    .input
-                    .iter()
-                    .map(|x| {
-                        format!("{}", model.eval(x, true).unwrap())
-                            .trim_start_matches("#x")
-                            .to_string()
-                    })
-                    .collect::<Vec<_>>()
-                    .join("");
-                let input_bytes = hex::decode(input.clone()).unwrap();
-                let callvalue = model.eval(self.calldatavalue, true).unwrap().to_string();
-                let callvalue_int =
-                    EVMU256::from_str_radix(&callvalue.trim_start_matches("#x"), 16).unwrap();
-                let caller = model.eval(self.caller, true).unwrap().to_string();
-                let caller_addr = EVMAddress::from_slice(
-                    &hex::decode(caller.as_str()[26..66].to_string()).unwrap(),
-                );
-                vec![Solution {
-                    input: input_bytes,
-                    caller: caller_addr,
-                    value: callvalue_int,
-                    fields: self.constrained_field.clone(),
-                }]
-            }
-            z3::SatResult::Unsat => vec![],
-            z3::SatResult::Unknown => vec![],
-        }
-    }
-}
-
-// Note: To model concolic memory, we need to remember previous constraints as well.
-// when solving a constraint involving persistant memory, if the persistant memory is not
-// depenent on other non-persitent variables, this means that the persistant memory change
-// might not be feasible, because the persistant memory cannot change it self.
-// Example:
-//     // in this case, even if we get the constraints for the memory element m[0]
-//     // we cannot solve it (invert it), because the memory element is cannot change
-//     // it self.
-//     m = [0, 0, 0, 0]
-//     fn f(a):
-//         if m[0] == 0:
-//             do something
-//         else:
-//             bug
-//     // in this case, we can actually solve for m[0]!=0, becuase the memeory element
-//     // is dependent on the input a.
-//     fn g(a):
-//         m[0] = a
-//         if m[0] == 0:
-//             do something
-//         else:
-//             bug
-
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct EVMInputConstraint {
-//     // concrete data of EVM Input
-//     data: Bytes,
-//     input_constraints: Vec<Box<Expr>>,
-// }
-
-// impl EVMInputConstraint {
-//     pub fn new(vm_input: BoxedABI) -> Self {
-//         // TODO: build input constraints from ABI
-//         let mut input_constraints = vec![];
-//         // input_constraints.push()
-
-//         Self {
-//             data: Bytes::from(vm_input.get_bytes()),
-//             input_constraints: input_constraints,
-//         }
-//     }
-
-//     pub fn add_constraint(&mut self, constraint: Box<Expr>) {
-//         self.input_constraints.push(constraint);
-//     }
-
-//     pub fn get_constraints(&self) -> &Vec<Box<Expr>> {
-//         &self.input_constraints
-//     }
-
-//     pub fn get_data(&self) -> &Bytes {
-//         &self.data
-//     }
-// }
-
-// Q: Why do we need to make persistent memory symbolic?
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SymbolicMemory {
@@ -602,13 +243,6 @@ impl<I, VS> ConcolicHost<I, VS> {
             symbolic_state: self.symbolic_state.clone(),
             input_bytes: {
                 let by = self.symbolic_memory.get_slice(arg_offset, arg_len);
-                #[cfg(feature = "z3_debug")]
-                {
-                    println!("input_bytes = {} {}", arg_offset, arg_len);
-                    by.iter().for_each(|b| {
-                        b.pretty_print();
-                    });
-                }
                 by
             },
         };
@@ -623,26 +257,6 @@ impl<I, VS> ConcolicHost<I, VS> {
         let res = vm_input.get_concolic();
         // println!("[concolic] construct_input_from_abi: {:?}", res);
         res
-    }
-
-    pub fn solve(&self) -> Vec<Solution> {
-        let context = Context::new(&Config::default());
-        // let input = (0..self.bytes)
-        //     .map(|idx| BV::new_const(&context, format!("input_{}", idx), 8))
-        //     .collect::<Vec<_>>();
-        let callvalue = BV::new_const(&context, "callvalue", 256);
-        let caller = BV::new_const(&context, "caller", 256);
-        let balance = BV::new_const(&context, "balance", 256);
-
-        let mut solving = Solving::new(
-            &context,
-            &self.input_bytes,
-            &balance,
-            &callvalue,
-            &caller,
-            &self.constraints,
-        );
-        solving.solve()
     }
 
     pub fn get_input_slice_from_ctx(&self, idx: usize, length: usize) -> Box<Expr> {
@@ -725,7 +339,7 @@ where
             }};
         }
 
-        let mut solutions = vec![];
+        let solutions = vec![];
 
         // if self.ctxs.len() > 0 {
         //     return;
@@ -1138,7 +752,6 @@ where
                 // println!("{:?}", self.symbolic_stack);
                 // jump dest in concolic solving mode is the opposite of the concrete
                 let br = is_zero(fast_peek!(1));
-                let intended_jmp_dest = if !br { 1 } else { as_u64(fast_peek!(0)) };
 
                 let real_path_constraint = if br {
                     // path_condition = false
@@ -1148,21 +761,6 @@ where
                     stack_bv!(1)
                 };
 
-                let idx = (interp.program_counter() * (intended_jmp_dest as usize)) % MAP_SIZE;
-                if JMP_MAP[idx] == 0 && !real_path_constraint.is_concrete() {
-                    let intended_path_constraint = real_path_constraint.clone().lnot();
-                    #[cfg(feature = "z3_debug")]
-                    println!(
-                        "[concolic] to solve {:?}",
-                        intended_path_constraint.pretty_print_str()
-                    );
-                    self.constraints.push(intended_path_constraint);
-
-                    solutions.extend(self.solve());
-                    #[cfg(feature = "z3_debug")]
-                    println!("[concolic] Solutions: {:?}", solutions);
-                    self.constraints.pop();
-                }
                 // jumping only happens if the second element is false
                 if !real_path_constraint.is_concrete() {
                     self.constraints.push(real_path_constraint);

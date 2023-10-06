@@ -2,7 +2,6 @@
 use crate::evm::contract_utils::ContractLoader;
 use crate::evm::onchain::endpoints::{OnChainConfig, PriceOracle};
 
-use crate::evm::oracles::erc20::IERC20OracleFlashloan;
 use crate::oracle::{Oracle, Producer};
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -58,7 +57,6 @@ pub struct Config<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, CI> {
     pub producers: Vec<Rc<RefCell<dyn Producer<VS, Addr, Code, By, Loc, SlotTy, Out, I, S, CI>>>>,
     pub price_oracle: Box<dyn PriceOracle>,
     pub replay_file: Option<String>,
-    pub flashloan_oracle: Rc<RefCell<IERC20OracleFlashloan>>,
     pub selfdestruct_oracle: bool,
     pub state_comp_oracle: Option<String>,
     pub state_comp_matching: Option<String>,
