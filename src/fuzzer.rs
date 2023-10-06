@@ -46,16 +46,6 @@ const STATS_TIMEOUT_DEFAULT: Duration = Duration::from_millis(100);
 pub static mut RUN_FOREVER: bool = false;
 pub static mut ORACLE_OUTPUT: Vec<serde_json::Value> = vec![];
 
-/// A fuzzer that implements ItyFuzz logic using LibAFL's [`Fuzzer`] trait
-///
-/// CS: The scheduler for the input corpus
-/// IS: The scheduler for the infant state corpus
-/// F: The feedback for the input corpus (e.g., coverage map)
-/// I: The VM input type
-/// OF: The objective for the input corpus (e.g., oracles)
-/// S: The fuzzer state type
-/// VS: The VM state type
-/// Addr: The address type (e.g., H160)
 #[derive(Debug)]
 pub struct ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, I, OF, S, OT, CI>
 where
@@ -300,7 +290,6 @@ macro_rules! dump_txn {
     }};
 }
 
-// implement evaluator trait for ItyFuzzer
 impl<'a, VS, Addr, Out, E, EM, I, S, CS, IS, F, OF, OT, CI> Evaluator<E, EM, I, S>
     for ItyFuzzer<'a, VS, Addr, Out, CS, IS, F, I, OF, S, OT, CI>
 where
@@ -362,16 +351,12 @@ where
             .objective
             .is_interesting(state, manager, &input, observers, &exitkind)?;
 
-        // add the trace of the new state
-        #[cfg(any(feature = "print_infant_corpus", feature = "print_txn_corpus"))]
-        {
-            state.get_execution_result_mut().new_state.trace.from_idx = Some(input.get_state_idx());
-            state
-                .get_execution_result_mut()
-                .new_state
-                .trace
-                .add_input(concise_input);
-        }
+        state.get_execution_result_mut().new_state.trace.from_idx = Some(input.get_state_idx());
+        state
+            .get_execution_result_mut()
+            .new_state
+            .trace
+            .add_input(concise_input);
 
         // add the new VM state to infant state corpus if it is interesting
         let mut state_idx = input.get_state_idx();
@@ -416,7 +401,6 @@ where
         }
 
         let final_res = match res {
-            // not interesting input, just check whether we should replace it due to better fav factor
             ExecuteInputResult::None => {
                 self.objective.discard_metadata(state, &input)?;
                 match self.should_replace(&input, unsafe { &JMP_MAP }) {
@@ -469,12 +453,17 @@ where
                 }
                 Ok((res, Some(corpus_idx)))
             }
-            // find the solution
+
             ExecuteInputResult::Solution => {
                 println!("\n\n\n😊😊 Found violations! \n\n");
                 let cur_report = format!(
-                    "================ Oracle ================\n{}\n================ Trace ================\n{}\n",
-                    unsafe { ORACLE_OUTPUT.iter().map(|v| { v["bug_info"].as_str().expect("") }).join("\n") },
+                    "=====Oracle =======\n{}\n====== Trace =============\n{}\n",
+                    unsafe {
+                        ORACLE_OUTPUT
+                            .iter()
+                            .map(|v| v["bug_info"].as_str().expect(""))
+                            .join("\n")
+                    },
                     state
                         .get_execution_result()
                         .new_state

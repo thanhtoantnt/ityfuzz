@@ -35,14 +35,12 @@ use core::ops::Range;
 use std::any::Any;
 
 use crate::evm::bytecode_analyzer;
-use crate::evm::host::{
-    FuzzHost, CMP_MAP, COVERAGE_NOT_CHANGED, JMP_MAP, READ_MAP, STATE_CHANGE, WRITE_MAP,
-};
+use crate::evm::host::{FuzzHost, COVERAGE_NOT_CHANGED, STATE_CHANGE};
 use crate::evm::input::{ConciseEVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::Middleware;
 use crate::evm::types::{EVMAddress, EVMU256};
 
-use crate::generic_vm::vm_executor::{ExecutionResult, GenericVM, MAP_SIZE};
+use crate::generic_vm::vm_executor::{ExecutionResult, GenericVM};
 use crate::generic_vm::vm_state::VMStateT;
 use crate::invoke_middlewares;
 
@@ -756,7 +754,7 @@ where
 
 pub static mut IN_DEPLOY: bool = false;
 
-impl<VS, I, S, CI> GenericVM<VS, Bytecode, Bytes, EVMAddress, EVMU256, Vec<u8>, I, S, CI>
+impl<VS, I, S, CI> GenericVM<VS, Bytecode, Bytes, EVMAddress, Vec<u8>, I, S, CI>
     for EVMExecutor<I, S, VS, CI>
 where
     I: VMInputT<VS, EVMAddress, ConciseEVMInput> + EVMInputT + 'static,
@@ -825,80 +823,12 @@ where
         Some(deployed_address)
     }
 
-    /// Execute an input (transaction)
-    #[cfg(not(feature = "flashloan_v2"))]
     fn execute(
         &mut self,
         input: &I,
         state: &mut S,
     ) -> ExecutionResult<EVMAddress, VS, Vec<u8>, CI> {
         self.execute_abi(input, state)
-    }
-
-    /// Execute a static call
-    fn fast_static_call(
-        &mut self,
-        data: &Vec<(EVMAddress, Bytes)>,
-        vm_state: &VS,
-        state: &mut S,
-    ) -> Vec<Vec<u8>> {
-        unsafe {
-            IS_FAST_CALL_STATIC = true;
-            self.host.evmstate = vm_state
-                .as_any()
-                .downcast_ref_unchecked::<EVMState>()
-                .clone();
-            self.host.current_self_destructs = vec![];
-            self.host.current_arbitrary_calls = vec![];
-            self.host.call_count = 0;
-            self.host.jumpi_trace = 37;
-            self.host.current_typed_bug = vec![];
-            self.host.randomness = vec![9];
-        }
-
-        let res = data
-            .iter()
-            .map(|(address, by)| {
-                let ctx = CallContext {
-                    address: *address,
-                    caller: Default::default(),
-                    code_address: *address,
-                    apparent_value: Default::default(),
-                    scheme: CallScheme::StaticCall,
-                };
-                let code = self.host.code.get(&address).expect("no code").clone();
-                let call = Contract::new_with_context_analyzed(by.clone(), code.clone(), &ctx);
-                let mut interp =
-                    Interpreter::new_with_memory_limit(call, 1e10 as u64, false, MEM_LIMIT);
-                let ret = self.host.run_inspect(&mut interp, state);
-                if !is_call_success!(ret) {
-                    vec![]
-                } else {
-                    interp.return_value().to_vec()
-                }
-            })
-            .collect::<Vec<Vec<u8>>>();
-
-        unsafe {
-            IS_FAST_CALL_STATIC = false;
-        }
-        res
-    }
-
-    fn get_jmp(&self) -> &'static mut [u8; MAP_SIZE] {
-        unsafe { &mut JMP_MAP }
-    }
-
-    fn get_read(&self) -> &'static mut [bool; MAP_SIZE] {
-        unsafe { &mut READ_MAP }
-    }
-
-    fn get_write(&self) -> &'static mut [u8; MAP_SIZE] {
-        unsafe { &mut WRITE_MAP }
-    }
-
-    fn get_cmp(&self) -> &'static mut [EVMU256; MAP_SIZE] {
-        unsafe { &mut CMP_MAP }
     }
 
     fn state_changed(&self) -> bool {

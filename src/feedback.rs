@@ -22,20 +22,20 @@ use std::{
     rc::Rc,
 };
 
-pub struct OracleFeedback<'a, VS, Addr, Code, By, SlotTy, Out, I, S: 'static, CI>
+pub struct OracleFeedback<'a, VS, Addr, Code, By, Out, I, S: 'static, CI>
 where
     I: VMInputT<VS, Addr, CI>,
     VS: Default + VMStateT,
     Addr: Serialize + DeserializeOwned + Debug + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
-    oracle: &'a Vec<Rc<RefCell<dyn Oracle<VS, Addr, Code, By, SlotTy, Out, I, S, CI>>>>,
-    executor: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI>>>,
+    oracle: &'a Vec<Rc<RefCell<dyn Oracle<VS, Addr, Code, By, Out, I, S, CI>>>>,
+    executor: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, Out, I, S, CI>>>,
     phantom: PhantomData<Out>,
 }
 
-impl<'a, VS, Addr, Code, By, SlotTy, Out, I, S, CI> Debug
-    for OracleFeedback<'a, VS, Addr, Code, By, SlotTy, Out, I, S, CI>
+impl<'a, VS, Addr, Code, By, Out, I, S, CI> Debug
+    for OracleFeedback<'a, VS, Addr, Code, By, Out, I, S, CI>
 where
     I: VMInputT<VS, Addr, CI>,
     VS: Default + VMStateT,
@@ -49,8 +49,8 @@ where
     }
 }
 
-impl<'a, VS, Addr, Code, By, SlotTy, Out, I, S, CI> Named
-    for OracleFeedback<'a, VS, Addr, Code, By, SlotTy, Out, I, S, CI>
+impl<'a, VS, Addr, Code, By, Out, I, S, CI> Named
+    for OracleFeedback<'a, VS, Addr, Code, By, Out, I, S, CI>
 where
     I: VMInputT<VS, Addr, CI>,
     VS: Default + VMStateT,
@@ -62,8 +62,7 @@ where
     }
 }
 
-impl<'a, VS, Addr, Code, By, SlotTy, Out, I, S, CI>
-    OracleFeedback<'a, VS, Addr, Code, By, SlotTy, Out, I, S, CI>
+impl<'a, VS, Addr, Code, By, Out, I, S, CI> OracleFeedback<'a, VS, Addr, Code, By, Out, I, S, CI>
 where
     I: VMInputT<VS, Addr, CI>,
     VS: Default + VMStateT,
@@ -72,8 +71,8 @@ where
 {
     /// Create a new [`OracleFeedback`]
     pub fn new(
-        oracle: &'a mut Vec<Rc<RefCell<dyn Oracle<VS, Addr, Code, By, SlotTy, Out, I, S, CI>>>>,
-        executor: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI>>>,
+        oracle: &'a mut Vec<Rc<RefCell<dyn Oracle<VS, Addr, Code, By, Out, I, S, CI>>>>,
+        executor: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, Out, I, S, CI>>>,
     ) -> Self {
         Self {
             oracle,
@@ -83,8 +82,8 @@ where
     }
 }
 
-impl<'a, VS, Addr, Code, By, SlotTy, Out, I, S, CI> Feedback<I, S>
-    for OracleFeedback<'a, VS, Addr, Code, By, SlotTy, Out, I, S, CI>
+impl<'a, VS, Addr, Code, By, Out, I, S, CI> Feedback<I, S>
+    for OracleFeedback<'a, VS, Addr, Code, By, Out, I, S, CI>
 where
     S: State
         + HasClientPerfMonitor
@@ -136,7 +135,7 @@ where
         }
 
         // set up oracle context
-        let mut oracle_ctx: OracleCtx<VS, Addr, Code, By, SlotTy, Out, I, S, CI> =
+        let mut oracle_ctx: OracleCtx<VS, Addr, Code, By, Out, I, S, CI> =
             OracleCtx::new(state, input.get_state(), &mut self.executor, input);
 
         let mut is_any_bug_hit = false;

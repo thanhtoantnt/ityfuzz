@@ -22,7 +22,7 @@ use crate::state::HasExecutionResult;
 /// Wrapper of smart contract VM, which implements LibAFL [`Executor`]
 /// TODO: in the future, we may need to add handlers?
 /// handle timeout/crash of executing contract
-pub struct FuzzExecutor<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
+pub struct FuzzExecutor<VS, Addr, Code, By, Out, I, S, OT, CI>
 where
     I: VMInputT<VS, Addr, CI>,
     OT: ObserversTuple<I, S>,
@@ -31,14 +31,14 @@ where
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// The VM executor
-    pub vm: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI>>>,
+    pub vm: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, Out, I, S, CI>>>,
     /// Observers (e.g., coverage)
     observers: OT,
     phantom: PhantomData<(I, S, Addr, Out)>,
 }
 
-impl<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI> Debug
-    for FuzzExecutor<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
+impl<VS, Addr, Code, By, Out, I, S, OT, CI> Debug
+    for FuzzExecutor<VS, Addr, Code, By, Out, I, S, OT, CI>
 where
     I: VMInputT<VS, Addr, CI>,
     OT: ObserversTuple<I, S>,
@@ -54,8 +54,7 @@ where
     }
 }
 
-impl<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
-    FuzzExecutor<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
+impl<VS, Addr, Code, By, Out, I, S, OT, CI> FuzzExecutor<VS, Addr, Code, By, Out, I, S, OT, CI>
 where
     I: VMInputT<VS, Addr, CI>,
     OT: ObserversTuple<I, S>,
@@ -65,7 +64,7 @@ where
 {
     /// Create a new [`FuzzExecutor`]
     pub fn new(
-        vm_executor: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI>>>,
+        vm_executor: Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, Out, I, S, CI>>>,
         observers: OT,
     ) -> Self {
         Self {
@@ -76,8 +75,8 @@ where
     }
 }
 
-impl<VS, Addr, Code, By, SlotTy, Out, I, S, OT, EM, Z, CI> Executor<EM, I, S, Z>
-    for FuzzExecutor<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
+impl<VS, Addr, Code, By, Out, I, S, OT, EM, Z, CI> Executor<EM, I, S, Z>
+    for FuzzExecutor<VS, Addr, Code, By, Out, I, S, OT, CI>
 where
     I: VMInputT<VS, Addr, CI> + Input + 'static,
     OT: ObserversTuple<I, S>,
@@ -104,8 +103,8 @@ where
 }
 
 // implement HasObservers trait for ItyFuzzer
-impl<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI> HasObservers<I, OT, S>
-    for FuzzExecutor<VS, Addr, Code, By, SlotTy, Out, I, S, OT, CI>
+impl<VS, Addr, Code, By, Out, I, S, OT, CI> HasObservers<I, OT, S>
+    for FuzzExecutor<VS, Addr, Code, By, Out, I, S, OT, CI>
 where
     I: VMInputT<VS, Addr, CI>,
     OT: ObserversTuple<I, S>,

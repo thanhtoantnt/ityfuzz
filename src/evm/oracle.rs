@@ -1,7 +1,7 @@
 /// Dummy oracle for testing
 use crate::evm::input::{ConciseEVMInput, EVMInput};
 
-use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx, EVMU256};
+use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx};
 
 use crate::evm::vm::EVMState;
 
@@ -16,18 +16,8 @@ use crate::fuzzer::ORACLE_OUTPUT;
 
 pub struct NoOracle {}
 
-impl
-    Oracle<
-        EVMState,
-        EVMAddress,
-        Bytecode,
-        Bytes,
-        EVMU256,
-        Vec<u8>,
-        EVMInput,
-        EVMFuzzState,
-        ConciseEVMInput,
-    > for NoOracle
+impl Oracle<EVMState, EVMAddress, Bytecode, Bytes, Vec<u8>, EVMInput, EVMFuzzState, ConciseEVMInput>
+    for NoOracle
 {
     fn transition(&self, _ctx: &mut EVMOracleCtx<'_>, _stage: u64) -> u64 {
         0

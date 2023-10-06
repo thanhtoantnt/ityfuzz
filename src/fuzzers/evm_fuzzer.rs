@@ -15,7 +15,7 @@ use crate::{
         mutator::FuzzMutator,
         oracles::typed_bug::TypedBugOracle,
         srcmap::parser::BASE_PATH,
-        types::{fixed_address, EVMAddress, EVMFuzzMutator, EVMFuzzState, EVMU256},
+        types::{fixed_address, EVMAddress, EVMFuzzMutator, EVMFuzzState},
         vm::{EVMExecutor, EVMState},
     },
     executor::FuzzExecutor,
@@ -43,7 +43,6 @@ pub fn evm_fuzzer(
         EVMAddress,
         Bytecode,
         Bytes,
-        EVMU256,
         Vec<u8>,
         EVMInput,
         EVMFuzzState,
@@ -113,9 +112,7 @@ pub fn evm_fuzzer(
     )));
 
     evm_executor.host.add_middlewares(cov_middleware.clone());
-
     state.add_metadata(instance_map);
-
     evm_executor.host.initialize(state);
 
     let evm_executor_ref = Rc::new(RefCell::new(evm_executor));
@@ -140,9 +137,6 @@ pub fn evm_fuzzer(
 
     let mut stages = tuple_list!(std_stage);
     let mut executor = FuzzExecutor::new(evm_executor_ref.clone(), tuple_list!(jmp_observer));
-
-    // let infant_feedback = CmpFeedback::new(cmps, &infant_scheduler, evm_executor_ref.clone());
-
     let mut oracles = config.oracle;
 
     if config.typed_bug {

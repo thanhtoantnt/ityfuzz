@@ -41,7 +41,7 @@ where
     }
 }
 
-pub trait GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI> {
+pub trait GenericVM<VS, Code, By, Addr, Out, I, S, CI> {
     fn deploy(
         &mut self,
         code: Code,
@@ -56,24 +56,6 @@ pub trait GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI> {
         Out: Default,
         CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde + 'static;
 
-    fn fast_static_call(
-        &mut self,
-        data: &Vec<(Addr, By)>,
-        vm_state: &VS,
-        state: &mut S,
-    ) -> Vec<Out>
-    where
-        VS: VMStateT,
-        Addr: Serialize + DeserializeOwned + Debug,
-        Out: Default;
-
-    // all these method should be implemented via a global variable, instead of getting data from
-    // the `self`. `self` here is only to make the trait object work.
-    fn get_jmp(&self) -> &'static mut [u8; MAP_SIZE];
-    fn get_read(&self) -> &'static mut [bool; MAP_SIZE];
-    fn get_write(&self) -> &'static mut [u8; MAP_SIZE];
-    fn get_cmp(&self) -> &'static mut [SlotTy; MAP_SIZE];
     fn state_changed(&self) -> bool;
-
     fn as_any(&mut self) -> &mut dyn std::any::Any;
 }

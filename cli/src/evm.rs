@@ -2,7 +2,7 @@ use clap::Parser;
 use ityfuzz::evm::config::{Config, FuzzerTypes};
 use ityfuzz::evm::contract_utils::ContractLoader;
 use ityfuzz::evm::input::{ConciseEVMInput, EVMInput};
-use ityfuzz::evm::types::{EVMAddress, EVMFuzzState, EVMU256};
+use ityfuzz::evm::types::{EVMAddress, EVMFuzzState};
 use ityfuzz::evm::vm::EVMState;
 use ityfuzz::fuzzers::evm_fuzzer::evm_fuzzer;
 use ityfuzz::oracle::Oracle;
@@ -205,7 +205,6 @@ pub fn evm_main(args: EvmArgs) {
                     EVMAddress,
                     _,
                     _,
-                    EVMU256,
                     Vec<u8>,
                     EVMInput,
                     EVMFuzzState,

@@ -4,8 +4,6 @@
 #![feature(trait_alias)]
 
 extern crate core;
-
-// pub mod cache;
 pub mod r#const;
 pub mod evm;
 pub mod executor;

@@ -1,7 +1,7 @@
 use crate::evm::input::{ConciseEVMInput, EVMInput};
 use crate::evm::oracle::EVMBugResult;
 
-use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx, EVMU256};
+use crate::evm::types::{EVMAddress, EVMFuzzState, EVMOracleCtx};
 use crate::evm::vm::EVMState;
 use crate::oracle::{Oracle, OracleCtx};
 use crate::state::HasExecutionResult;
@@ -26,18 +26,8 @@ impl TypedBugOracle {
     }
 }
 
-impl
-    Oracle<
-        EVMState,
-        EVMAddress,
-        Bytecode,
-        Bytes,
-        EVMU256,
-        Vec<u8>,
-        EVMInput,
-        EVMFuzzState,
-        ConciseEVMInput,
-    > for TypedBugOracle
+impl Oracle<EVMState, EVMAddress, Bytecode, Bytes, Vec<u8>, EVMInput, EVMFuzzState, ConciseEVMInput>
+    for TypedBugOracle
 {
     fn transition(&self, _ctx: &mut EVMOracleCtx<'_>, _stage: u64) -> u64 {
         0
@@ -50,7 +40,6 @@ impl
             EVMAddress,
             Bytecode,
             Bytes,
-            EVMU256,
             Vec<u8>,
             EVMInput,
             EVMFuzzState,

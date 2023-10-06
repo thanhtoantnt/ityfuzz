@@ -40,12 +40,12 @@ impl FuzzerTypes {
     }
 }
 
-pub struct Config<VS, Addr, Code, By, SlotTy, Out, I, S, CI> {
+pub struct Config<VS, Addr, Code, By, Out, I, S, CI> {
     pub concolic: bool,
     pub concolic_caller: bool,
     pub fuzzer_type: FuzzerTypes,
     pub contract_loader: ContractLoader,
-    pub oracle: Vec<Rc<RefCell<dyn Oracle<VS, Addr, Code, By, SlotTy, Out, I, S, CI>>>>,
+    pub oracle: Vec<Rc<RefCell<dyn Oracle<VS, Addr, Code, By, Out, I, S, CI>>>>,
     pub state_comp_oracle: Option<String>,
     pub state_comp_matching: Option<String>,
     pub work_dir: String,

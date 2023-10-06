@@ -16,7 +16,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 /// The context passed to the oracle
-pub struct OracleCtx<'a, VS, Addr, Code, By, SlotTy, Out, I, S: 'static, CI>
+pub struct OracleCtx<'a, VS, Addr, Code, By, Out, I, S: 'static, CI>
 where
     I: VMInputT<VS, Addr, CI>,
     VS: Default + VMStateT,
@@ -33,14 +33,13 @@ where
     /// The metadata of the oracle
     pub metadata: SerdeAnyMap,
     /// The executor
-    pub executor: &'a mut Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI>>>,
+    pub executor: &'a mut Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, Out, I, S, CI>>>,
     /// The input executed by the VM
     pub input: &'a I,
     pub phantom: PhantomData<Addr>,
 }
 
-impl<'a, VS, Addr, Code, By, SlotTy, Out, I, S, CI>
-    OracleCtx<'a, VS, Addr, Code, By, SlotTy, Out, I, S, CI>
+impl<'a, VS, Addr, Code, By, Out, I, S, CI> OracleCtx<'a, VS, Addr, Code, By, Out, I, S, CI>
 where
     I: VMInputT<VS, Addr, CI> + 'static,
     S: State + HasCorpus<I> + HasMetadata + HasExecutionResult<Addr, VS, Out, CI>,
@@ -53,7 +52,7 @@ where
     pub fn new(
         fuzz_state: &'a mut S,
         pre_state: &'a VS,
-        executor: &'a mut Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, SlotTy, Out, I, S, CI>>>,
+        executor: &'a mut Rc<RefCell<dyn GenericVM<VS, Code, By, Addr, Out, I, S, CI>>>,
         input: &'a I,
     ) -> Self {
         Self {
@@ -69,7 +68,7 @@ where
 }
 
 /// Producer trait provides functions needed to produce data for the oracle
-pub trait Producer<VS, Addr, Code, By, SlotTy, Out, I, S, CI>
+pub trait Producer<VS, Addr, Code, By, Out, I, S, CI>
 where
     I: VMInputT<VS, Addr, CI>,
     VS: Default + VMStateT,
@@ -78,13 +77,13 @@ where
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// Produce data for the oracle, called everytime before any oracle is called
-    fn produce(&mut self, ctx: &mut OracleCtx<VS, Addr, Code, By, SlotTy, Out, I, S, CI>);
+    fn produce(&mut self, ctx: &mut OracleCtx<VS, Addr, Code, By, Out, I, S, CI>);
     /// Cleanup. Called everytime after the oracle is called
-    fn notify_end(&mut self, ctx: &mut OracleCtx<VS, Addr, Code, By, SlotTy, Out, I, S, CI>);
+    fn notify_end(&mut self, ctx: &mut OracleCtx<VS, Addr, Code, By, Out, I, S, CI>);
 }
 
 /// Oracle trait provides functions needed to implement an oracle
-pub trait Oracle<VS, Addr, Code, By, SlotTy, Out, I, S, CI>
+pub trait Oracle<VS, Addr, Code, By, Out, I, S, CI>
 where
     I: VMInputT<VS, Addr, CI>,
     VS: Default + VMStateT,
@@ -93,17 +92,14 @@ where
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
 {
     /// Transition function, called everytime after non-reverted execution
-    fn transition(
-        &self,
-        ctx: &mut OracleCtx<VS, Addr, Code, By, SlotTy, Out, I, S, CI>,
-        stage: u64,
-    ) -> u64;
+    fn transition(&self, ctx: &mut OracleCtx<VS, Addr, Code, By, Out, I, S, CI>, stage: u64)
+        -> u64;
 
     /// Oracle function, called everytime after non-reverted execution
     /// Returns Some(bug_idx) if the oracle is violated
     fn oracle(
         &self,
-        ctx: &mut OracleCtx<VS, Addr, Code, By, SlotTy, Out, I, S, CI>,
+        ctx: &mut OracleCtx<VS, Addr, Code, By, Out, I, S, CI>,
         stage: u64,
     ) -> Vec<u64>;
 }
