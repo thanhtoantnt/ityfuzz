@@ -1,10 +1,9 @@
 use crate::{
     evm::{
         abi::ABIAddressToInstanceMap,
-        config::Config,
+        config::EVMFuzzConfig,
         contract_utils::FIX_DEPLOYER,
         corpus_initializer::EVMCorpusInitializer,
-        feedbacks::Sha3WrappedFeedback,
         host::{FuzzHost, ACTIVE_MATCH_EXT_CALL, JMP_MAP, WRITE_RELATIONSHIPS},
         input::{ConciseEVMInput, EVMInput},
         middlewares::{
@@ -38,7 +37,7 @@ use revm_primitives::Bytecode;
 use std::{cell::RefCell, ops::Deref, path::Path, rc::Rc, sync::Arc};
 
 pub fn evm_fuzzer(
-    config: Config<
+    config: EVMFuzzConfig<
         EVMState,
         EVMAddress,
         Bytecode,
@@ -148,17 +147,11 @@ pub fn evm_fuzzer(
     state.add_metadata(BugMetadata::new());
 
     let objective = OracleFeedback::new(&mut oracles, evm_executor_ref.clone());
-    let wrapped_feedback = Sha3WrappedFeedback::new(
-        feedback,
-        sha3_taint,
-        evm_executor_ref.clone(),
-        config.sha3_bypass,
-    );
 
     let mut fuzzer = ItyFuzzer::new(
         scheduler,
         &infant_scheduler,
-        wrapped_feedback,
+        feedback,
         objective,
         config.work_dir,
     );

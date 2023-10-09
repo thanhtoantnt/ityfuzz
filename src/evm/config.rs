@@ -40,7 +40,7 @@ impl FuzzerTypes {
     }
 }
 
-pub struct Config<VS, Addr, Code, By, Out, I, S, CI> {
+pub struct EVMFuzzConfig<VS, Addr, Code, By, Out, I, S, CI> {
     pub concolic: bool,
     pub concolic_caller: bool,
     pub fuzzer_type: FuzzerTypes,

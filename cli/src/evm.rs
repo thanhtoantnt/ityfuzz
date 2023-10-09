@@ -1,5 +1,5 @@
 use clap::Parser;
-use ityfuzz::evm::config::{Config, FuzzerTypes};
+use ityfuzz::evm::config::{EVMFuzzConfig, FuzzerTypes};
 use ityfuzz::evm::contract_utils::ContractLoader;
 use ityfuzz::evm::input::{ConciseEVMInput, EVMInput};
 use ityfuzz::evm::types::{EVMAddress, EVMFuzzState};
@@ -220,7 +220,7 @@ pub fn evm_main(args: EvmArgs) {
 
     let constructor_args_map = HashMap::new();
 
-    let config = Config {
+    let config = EVMFuzzConfig {
         fuzzer_type: FuzzerTypes::from_str(args.fuzzer_type.as_str()).expect("unknown fuzzer"),
         contract_loader: match target_type {
             EVMTargetType::Glob => ContractLoader::from_glob(

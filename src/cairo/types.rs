@@ -1,12 +1,13 @@
-// use super::{input::CairoInput, vm::CairoState};
-// use crate::evm::mutator::FuzzMutator;
-// use crate::{
-//     oracle::OracleCtx, scheduler::SortedDroppingScheduler, state::FuzzState,
-//     state_input::StagedVMState,
-// };
+use crate::state::FuzzState;
+
+use super::{
+    input::{CairoInput, ConciseCairoInput},
+    vm::CairoState,
+};
 
 pub type CairoAddress = usize;
-// pub type CairoFuzzState = FuzzState<CairoInput, CairoState, CairoAddress>;
+pub type CairoFuzzState =
+    FuzzState<CairoInput, CairoState, CairoAddress, Vec<u8>, ConciseCairoInput>;
 // pub type CairoOracleCtx<'a> = OracleCtx<'a, CairoState, CairoAddress, CairoInput, CairoFuzzState>;
 
 // pub type CairoFuzzMutator<'a> = FuzzMutator<

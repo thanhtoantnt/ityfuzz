@@ -1,2 +1,2 @@
+pub mod cairo_fuzzer;
 pub mod evm_fuzzer;
-// pub mod move_fuzzer;
