@@ -13,9 +13,7 @@ use libafl::Error;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::evm::abi::ABIAddressToInstanceMap;
 use crate::evm::types::{convert_u256_to_h160, EVMAddress, EVMU256};
-use crate::evm::vm::{Constraint, EVMStateT};
 use revm_interpreter::Interpreter;
 use std::fmt::Debug;
 
@@ -117,43 +115,6 @@ where
             phantom: Default::default(),
         }
     }
-
-    fn ensures_constraint<I, S>(input: &mut I, state: &mut S, constraints: Vec<Constraint>)
-    where
-        I: VMInputT<VS, Addr, CI> + Input + EVMInputT,
-        S: State + HasRand + HasMaxSize + HasItyState<Addr, VS, CI> + HasCaller<Addr> + HasMetadata,
-    {
-        for constraint in constraints {
-            match constraint {
-                Constraint::Caller(caller) => {
-                    input.set_caller_evm(caller);
-                }
-                Constraint::Value(value) => {
-                    input.set_txn_value(value);
-                }
-                Constraint::Contract(target) => {
-                    let rand_int = state.rand_mut().next();
-                    let always_none = state.rand_mut().next() % 30 == 0;
-                    let abis = state
-                        .metadata()
-                        .get::<ABIAddressToInstanceMap>()
-                        .expect("ABIAddressToInstanceMap not found");
-                    let abi = match abis.map.get(&target) {
-                        Some(abi) => {
-                            if abi.len() > 0 && !always_none {
-                                Some((*abi)[rand_int as usize % abi.len()].clone())
-                            } else {
-                                None
-                            }
-                        }
-                        None => None,
-                    };
-                    input.set_contract_and_abi(target, abi);
-                }
-                Constraint::NoLiquidation => {}
-            }
-        }
-    }
 }
 
 impl<'a, VS, Loc, Addr, I, S, SC, CI> Mutator<I, S> for FuzzMutator<'a, VS, Loc, Addr, SC, CI>
@@ -161,7 +122,7 @@ where
     I: VMInputT<VS, Addr, CI> + Input + EVMInputT,
     S: State + HasRand + HasMaxSize + HasItyState<Addr, VS, CI> + HasCaller<Addr> + HasMetadata,
     SC: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>,
-    VS: Default + VMStateT + EVMStateT,
+    VS: Default + VMStateT,
     Addr: PartialEq + Debug + Serialize + DeserializeOwned + Clone,
     Loc: Serialize + DeserializeOwned + Debug + Clone,
     CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde,
@@ -238,7 +199,6 @@ where
                         input.set_caller(state.get_rand_caller());
                     }
 
-                    Self::ensures_constraint(input, state, new_state.state.get_constraints());
                     input.set_staged_state(new_state, idx);
                     MutationResult::Mutated
                 }

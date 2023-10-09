@@ -4,7 +4,7 @@
 #![feature(trait_alias)]
 
 extern crate core;
-// pub mod cairo;
+pub mod cairo;
 pub mod r#const;
 pub mod evm;
 pub mod executor;

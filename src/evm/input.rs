@@ -68,23 +68,11 @@ pub trait EVMInputT {
     /// Set the transaction value in wei
     fn set_txn_value(&mut self, v: EVMU256);
 
-    /// Get input type
-    #[cfg(feature = "flashloan_v2")]
-    fn get_input_type(&self) -> EVMInputTy;
-
     /// Get additional random bytes for mutator
     fn get_randomness(&self) -> Vec<u8>;
 
     /// Set additional random bytes for mutator
     fn set_randomness(&mut self, v: Vec<u8>);
-
-    /// Get the percentage of the token amount in all callers' account to liquidate
-    #[cfg(feature = "flashloan_v2")]
-    fn get_liquidation_percent(&self) -> u8;
-
-    /// Set the percentage of the token amount in all callers' account to liquidate
-    #[cfg(feature = "flashloan_v2")]
-    fn set_liquidation_percent(&mut self, v: u8);
 
     fn get_repeat(&self) -> usize;
 }
@@ -92,10 +80,6 @@ pub trait EVMInputT {
 /// EVM Input
 #[derive(Serialize, Deserialize, Clone)]
 pub struct EVMInput {
-    /// Input type
-    #[cfg(feature = "flashloan_v2")]
-    pub input_type: EVMInputTy,
-
     /// Caller address
     pub caller: EVMAddress,
 
@@ -126,10 +110,6 @@ pub struct EVMInput {
     #[serde(skip_deserializing)]
     pub access_pattern: Rc<RefCell<AccessPattern>>,
 
-    /// Percentage of the token amount in all callers' account to liquidate
-    #[cfg(feature = "flashloan_v2")]
-    pub liquidation_percent: u8,
-
     /// If ABI is empty, use direct data, which is the raw input data
     pub direct_data: Bytes,
 
@@ -143,10 +123,6 @@ pub struct EVMInput {
 /// EVM Input Minimum for Deserializing
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ConciseEVMInput {
-    /// Input type
-    #[cfg(feature = "flashloan_v2")]
-    pub input_type: EVMInputTy,
-
     /// Caller address
     pub caller: EVMAddress,
 
@@ -154,10 +130,7 @@ pub struct ConciseEVMInput {
     pub contract: EVMAddress,
 
     /// Input data in ABI format
-    #[cfg(not(feature = "debug"))]
     pub data: Option<BoxedABI>,
-    #[cfg(feature = "debug")]
-    pub direct_data: String,
 
     /// Transaction value in wei
     pub txn_value: Option<EVMU256>,
@@ -167,10 +140,6 @@ pub struct ConciseEVMInput {
 
     /// Environment (block, timestamp, etc.)
     pub env: Env,
-
-    /// Percentage of the token amount in all callers' account to liquidate
-    #[cfg(feature = "flashloan_v2")]
-    pub liquidation_percent: u8,
 
     /// Additional random bytes for mutator
     pub randomness: Vec<u8>,

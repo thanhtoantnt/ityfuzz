@@ -1,53 +1,46 @@
-/// EVM executor implementation
-use itertools::Itertools;
-use std::cell::RefCell;
-use std::cmp::min;
-use std::collections::{HashMap, HashSet};
-
-use std::collections::hash_map::DefaultHasher;
-use std::fmt::Debug;
-
-use std::hash::{Hash, Hasher};
-
-use std::marker::PhantomData;
-use std::ops::Deref;
-
-use std::rc::Rc;
-
-use std::sync::Arc;
-
-use crate::input::{ConciseSerde, VMInputT};
-use crate::state_input::StagedVMState;
+use crate::{
+    evm::{
+        bytecode_analyzer,
+        host::{FuzzHost, COVERAGE_NOT_CHANGED, STATE_CHANGE},
+        input::{ConciseEVMInput, EVMInputT},
+        middlewares::middleware::Middleware,
+        types::{EVMAddress, EVMU256},
+    },
+    generic_vm::{
+        vm_executor::{ExecutionResult, GenericVM},
+        vm_state::VMStateT,
+    },
+    input::{ConciseSerde, VMInputT},
+    invoke_middlewares,
+    state::{HasCaller, HasCurrentInputIdx, HasItyState},
+    state_input::StagedVMState,
+};
 use bytes::Bytes;
-
-use libafl::prelude::{HasMetadata, HasRand};
-
-use libafl::state::{HasCorpus, State};
-
-use revm_interpreter::InstructionResult::ControlLeak;
+use core::ops::Range;
+use itertools::Itertools;
+use libafl::{
+    prelude::{HasMetadata, HasRand},
+    state::{HasCorpus, State},
+};
 use revm_interpreter::{
-    BytecodeLocked, CallContext, CallScheme, Contract, Gas, InstructionResult, Interpreter, Memory,
-    Stack,
+    BytecodeLocked, CallContext, CallScheme, Contract, Gas,
+    InstructionResult::{self, ControlLeak},
+    Interpreter, Memory, Stack,
 };
 use revm_primitives::Bytecode;
-
-use core::ops::Range;
-use std::any::Any;
-
-use crate::evm::bytecode_analyzer;
-use crate::evm::host::{FuzzHost, COVERAGE_NOT_CHANGED, STATE_CHANGE};
-use crate::evm::input::{ConciseEVMInput, EVMInputT};
-use crate::evm::middlewares::middleware::Middleware;
-use crate::evm::types::{EVMAddress, EVMU256};
-
-use crate::generic_vm::vm_executor::{ExecutionResult, GenericVM};
-use crate::generic_vm::vm_state::VMStateT;
-use crate::invoke_middlewares;
-
-use crate::evm::vm::Constraint::{NoLiquidation, Value};
-use crate::state::{HasCaller, HasCurrentInputIdx, HasItyState};
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::{
+    any::Any,
+    cell::RefCell,
+    cmp::min,
+    collections::{hash_map::DefaultHasher, HashMap, HashSet},
+    fmt::Debug,
+    hash::{Hash, Hasher},
+    marker::PhantomData,
+    ops::Deref,
+    rc::Rc,
+    sync::Arc,
+};
 
 pub const MEM_LIMIT: u64 = 10 * 1024;
 const MAX_POST_EXECUTION: usize = 10;
@@ -202,7 +195,7 @@ impl SinglePostExecution {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PostExecutionCtx {
-    pub constraints: Vec<Constraint>,
+    // constraints: Vec<Constraint>,
     pub pes: Vec<SinglePostExecution>,
 
     pub must_step: bool,
@@ -227,7 +220,7 @@ pub struct EVMState {
     ///
     /// There can be more than one [`PostExecutionCtx`] when the control is leaked again
     /// on the incomplete state (i.e., double+ reentrancy)
-    pub post_execution: Vec<PostExecutionCtx>,
+    post_execution: Vec<PostExecutionCtx>,
 
     #[serde(skip)]
     pub bug_hit: bool,
@@ -241,29 +234,13 @@ pub struct EVMState {
     pub arbitrary_calls: HashSet<(EVMAddress, EVMAddress, usize)>,
 }
 
-pub trait EVMStateT {
-    fn get_constraints(&self) -> Vec<Constraint>;
-}
-
-impl EVMStateT for EVMState {
-    fn get_constraints(&self) -> Vec<Constraint> {
-        match self.post_execution.last() {
-            Some(i) => i.constraints.clone(),
-            None => vec![],
-        }
-    }
-}
-
 impl Default for EVMState {
-    /// Default VM state, containing empty state, no post execution context,
-    /// and no flashloan usage
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl VMStateT for EVMState {
-    /// Calculate the hash of the VM state
     fn get_hash(&self) -> u64 {
         let mut s = DefaultHasher::new();
         for i in self.post_execution.iter() {
@@ -279,9 +256,6 @@ impl VMStateT for EVMState {
         s.finish()
     }
 
-    /// Check whether current state has post execution context
-    /// This can also used to check whether a state is intermediate state (i.e., not yet
-    /// finished execution)
     fn has_post_execution(&self) -> bool {
         self.post_execution.len() > 0
     }
@@ -308,12 +282,6 @@ impl VMStateT for EVMState {
     /// Get amount of post execution context
     fn get_post_execution_len(&self) -> usize {
         self.post_execution.len()
-    }
-
-    /// Get flashloan information
-    #[cfg(feature = "full_trace")]
-    fn get_flashloan(&self) -> String {
-        format!("earned",)
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -667,23 +635,6 @@ where
                     must_step: match r.ret {
                         ControlLeak => false,
                         InstructionResult::ArbitraryExternalCallAddressBounded(_, _, _) => true,
-                        _ => unreachable!(),
-                    },
-
-                    constraints: match r.ret {
-                        ControlLeak => vec![],
-                        InstructionResult::ArbitraryExternalCallAddressBounded(
-                            caller,
-                            target,
-                            value,
-                        ) => {
-                            vec![
-                                Constraint::Caller(caller),
-                                Constraint::Contract(target),
-                                Value(value),
-                                NoLiquidation,
-                            ]
-                        }
                         _ => unreachable!(),
                     },
                 });
