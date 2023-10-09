@@ -1,12 +1,12 @@
 use crate::{
     evm::{
         input::{ConciseEVMInput, EVMInput},
-        mutator::FuzzMutator,
         srcmap::parser::SourceMapLocation,
         vm::EVMState,
     },
     executor::FuzzExecutor,
     generic_vm::vm_executor::ExecutionResult,
+    mutator::FuzzMutator,
     oracle::OracleCtx,
     scheduler::SortedDroppingScheduler,
     state::{FuzzState, InfantStateState},

@@ -1,22 +1,27 @@
 use clap::Parser;
-use ityfuzz::evm::config::{EVMFuzzConfig, FuzzerTypes};
-use ityfuzz::evm::contract_utils::ContractLoader;
-use ityfuzz::evm::input::{ConciseEVMInput, EVMInput};
-use ityfuzz::evm::types::{EVMAddress, EVMFuzzState};
-use ityfuzz::evm::vm::EVMState;
-use ityfuzz::fuzzers::evm_fuzzer::evm_fuzzer;
-use ityfuzz::oracle::Oracle;
-use ityfuzz::state::FuzzState;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::rc::Rc;
-use std::str::FromStr;
+use ityfuzz::{
+    evm::{
+        config::{EVMFuzzConfig, FuzzerTypes},
+        contract_utils::ContractLoader,
+        input::{ConciseEVMInput, EVMInput},
+        types::{EVMAddress, EVMFuzzState},
+        vm::EVMState,
+    },
+    fuzzers::evm_fuzzer::evm_fuzzer,
+    oracle::Oracle,
+    state::FuzzState,
+};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+    str::FromStr,
+};
 
 /// CLI for ItyFuzz for EVM smart contracts
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
-pub struct EvmArgs {
+pub struct EVMArgs {
     /// Glob pattern / address to find contracts
     #[arg(short, long)]
     target: String,
@@ -110,10 +115,6 @@ pub struct EvmArgs {
     #[arg(long, default_value = "true")]
     echidna_oracle: bool,
 
-    ///Enable oracle for detecting whether bug() / typed_bug() is called
-    #[arg(long, default_value = "true")]
-    typed_bug_oracle: bool,
-
     /// Setting any string here will enable state comparison oracle.
     /// This arg holds file path pointing to state comparison oracle's desired state
     #[arg(long, default_value = "")]
@@ -179,7 +180,7 @@ enum EVMTargetType {
     Address,
 }
 
-pub fn evm_main(args: EvmArgs) {
+pub fn evm_main(args: EVMArgs) {
     let target_type: EVMTargetType = match args.target_type {
         Some(v) => match v.as_str() {
             "glob" => EVMTargetType::Glob,
@@ -241,7 +242,7 @@ pub fn evm_main(args: EvmArgs) {
         },
         concolic: args.concolic,
         concolic_caller: args.concolic_caller,
-        oracle: oracles,
+        oracles,
         state_comp_matching: if args.state_comp_oracle.len() > 0 {
             Some(args.state_comp_matching)
         } else {
@@ -260,13 +261,9 @@ pub fn evm_main(args: EvmArgs) {
         echidna_oracle: args.echidna_oracle,
         panic_on_bug: args.panic_on_bug,
         spec_id: args.spec_id,
-        typed_bug: args.typed_bug_oracle,
         selfdestruct_bug: args.selfdestruct_oracle,
         arbitrary_external_call: args.arbitrary_external_call_oracle,
     };
 
-    match config.fuzzer_type {
-        FuzzerTypes::CMP => evm_fuzzer(config, &mut state),
-        _ => {}
-    }
+    evm_fuzzer(config, &mut state)
 }

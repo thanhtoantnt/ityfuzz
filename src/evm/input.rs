@@ -1,9 +1,9 @@
 use crate::evm::abi::{AEmpty, AUnknown, BoxedABI};
-use crate::evm::mutator::AccessPattern;
 use crate::evm::types::{EVMAddress, EVMStagedVMState, EVMU256};
 use crate::evm::vm::EVMState;
 use crate::input::{ConciseSerde, VMInputT};
 use crate::mutation_utils::byte_mutator;
+use crate::mutator::AccessPattern;
 use crate::state::{HasCaller, HasItyState};
 use crate::state_input::StagedVMState;
 
@@ -558,7 +558,6 @@ impl EVMInput {
             };
         }
         add_mutator!(caller);
-        add_mutator!(balance, ap.balance.len() > 0);
         if ap.call_value || self.get_txn_value().is_some() {
             mutators
                 .push(&EVMInput::call_value as &dyn Fn(&mut EVMInput, &mut S) -> MutationResult);

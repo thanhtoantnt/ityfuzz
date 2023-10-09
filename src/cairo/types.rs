@@ -1,4 +1,9 @@
-use crate::state::FuzzState;
+use crate::{
+    mutator::FuzzMutator,
+    scheduler::SortedDroppingScheduler,
+    state::{FuzzState, InfantStateState},
+    state_input::StagedVMState,
+};
 
 use super::{
     input::{CairoInput, ConciseCairoInput},
@@ -8,15 +13,15 @@ use super::{
 pub type CairoAddress = usize;
 pub type CairoFuzzState =
     FuzzState<CairoInput, CairoState, CairoAddress, Vec<u8>, ConciseCairoInput>;
-// pub type CairoOracleCtx<'a> = OracleCtx<'a, CairoState, CairoAddress, CairoInput, CairoFuzzState>;
 
-// pub type CairoFuzzMutator<'a> = FuzzMutator<
-//     'a,
-//     CairoState,
-//     CairoAddress,
-//     SortedDroppingScheduler<StagedVMState<CairoState>, InfantState<CairoState>>,
-// >;
-
-// pub type CairoStagedVMState = StagedVMState<CairoState>;
-
-// pub type CairoInfantState = InfantState<CairoState>;
+pub type CairoFuzzMutator<'a> = FuzzMutator<
+    'a,
+    CairoState,
+    CairoAddress,
+    CairoAddress,
+    SortedDroppingScheduler<
+        StagedVMState<CairoAddress, CairoState, ConciseCairoInput>,
+        InfantStateState<CairoAddress, CairoState, ConciseCairoInput>,
+    >,
+    ConciseCairoInput,
+>;

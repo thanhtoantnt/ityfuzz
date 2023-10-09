@@ -17,12 +17,15 @@ pub struct CairoState {
     pub state: Vec<(u32, u32)>,
 
     pub bug_hit: bool,
+
+    pub typed_bug: Vec<String>,
 }
 
 impl CairoState {
     pub(crate) fn new() -> Self {
         Self {
             state: vec![],
+            typed_bug: vec![],
             bug_hit: false,
         }
     }

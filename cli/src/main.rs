@@ -1,6 +1,8 @@
+mod cairo;
 mod evm;
 
-use crate::evm::{evm_main, EvmArgs};
+use crate::cairo::{cairo_main, CairoArgs};
+use crate::evm::{evm_main, EVMArgs};
 use clap::Parser;
 use clap::Subcommand;
 
@@ -13,7 +15,8 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    EVM(EvmArgs),
+    EVM(EVMArgs),
+    Cairo(CairoArgs),
 }
 
 fn main() {
@@ -21,6 +24,9 @@ fn main() {
     match args.command {
         Commands::EVM(args) => {
             evm_main(args);
+        }
+        Commands::Cairo(args) => {
+            cairo_main(args);
         }
     }
 }

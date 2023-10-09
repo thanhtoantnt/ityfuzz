@@ -1,24 +1,19 @@
-/// Mutator for EVM inputs
-use crate::evm::input::EVMInputT;
-
-use crate::generic_vm::vm_state::VMStateT;
-use crate::input::{ConciseSerde, VMInputT};
-use crate::state::{HasCaller, InfantStateState};
+use crate::{
+    generic_vm::vm_state::VMStateT,
+    input::{ConciseSerde, VMInputT},
+    state::{HasCaller, HasItyState, InfantStateState},
+    state_input::StagedVMState,
+};
 use libafl::inputs::Input;
 use libafl::mutators::MutationResult;
 use libafl::prelude::{HasMaxSize, HasRand, Mutator, Rand, State};
 use libafl::schedulers::Scheduler;
 use libafl::state::HasMetadata;
 use libafl::Error;
+use revm_interpreter::Interpreter;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-
-use crate::evm::types::{convert_u256_to_h160, EVMAddress, EVMU256};
-use revm_interpreter::Interpreter;
 use std::fmt::Debug;
-
-use crate::state::HasItyState;
-use crate::state_input::StagedVMState;
 
 /// [`AccessPattern`] records the access pattern of the input during execution. This helps
 /// to determine what is needed to be fuzzed. For instance, we don't need to mutate caller
@@ -28,8 +23,7 @@ use crate::state_input::StagedVMState;
 /// if a new corpus item is added, it should inherit the access pattern of its source
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct AccessPattern {
-    pub caller: bool,             // or origin
-    pub balance: Vec<EVMAddress>, // balance queried for accounts
+    pub caller: bool, // or origin
     pub call_value: bool,
     pub gas_price: bool,
     pub number: bool,
@@ -45,7 +39,6 @@ impl AccessPattern {
     /// Create a new access pattern with all fields set to false
     pub fn new() -> Self {
         Self {
-            balance: vec![],
             caller: false,
             call_value: false,
             gas_price: false,
@@ -62,9 +55,6 @@ impl AccessPattern {
     /// Record access pattern of current opcode executed by the interpreter
     pub fn decode_instruction(&mut self, interp: &Interpreter) {
         match unsafe { *interp.instruction_pointer } {
-            0x31 => self
-                .balance
-                .push(convert_u256_to_h160(interp.stack.peek(0).unwrap())),
             0x33 => self.caller = true,
             0x34 => {
                 // prevent initial check of dispatch to fallback
@@ -119,7 +109,7 @@ where
 
 impl<'a, VS, Loc, Addr, I, S, SC, CI> Mutator<I, S> for FuzzMutator<'a, VS, Loc, Addr, SC, CI>
 where
-    I: VMInputT<VS, Addr, CI> + Input + EVMInputT,
+    I: VMInputT<VS, Addr, CI> + Input,
     S: State + HasRand + HasMaxSize + HasItyState<Addr, VS, CI> + HasCaller<Addr> + HasMetadata,
     SC: Scheduler<StagedVMState<Addr, VS, CI>, InfantStateState<Addr, VS, CI>>,
     VS: Default + VMStateT,
@@ -162,7 +152,6 @@ where
                     _ => input.mutate(state),
                 };
 
-                input.set_txn_value(EVMU256::ZERO);
                 return res;
             }
 
@@ -181,8 +170,6 @@ where
                 }
             }
 
-            // mutate the bytes or VM state or liquidation percent (percentage of token to liquidate)
-            // by default
             match state.rand_mut().below(100) {
                 0..=5 => {
                     if already_crossed {
@@ -202,11 +189,7 @@ where
                     input.set_staged_state(new_state, idx);
                     MutationResult::Mutated
                 }
-                11 => {
-                    let rand_u8 = state.rand_mut().below(255) as u8;
-                    input.set_randomness(vec![rand_u8; 1]);
-                    MutationResult::Mutated
-                }
+                11 => MutationResult::Mutated,
                 _ => input.mutate(state),
             }
         };
@@ -214,8 +197,6 @@ where
         let mut res = MutationResult::Skipped;
         let mut tries = 0;
 
-        // try to mutate the input for [`havoc_times`] times with 20 retries if
-        // the input is not mutated
         while res != MutationResult::Mutated && tries < 20 {
             for _ in 0..havoc_times {
                 if mutator() == MutationResult::Mutated {

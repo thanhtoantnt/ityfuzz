@@ -11,7 +11,6 @@ use crate::{
             middleware::Middleware,
             sha3_bypass::{Sha3Bypass, Sha3TaintAnalysis},
         },
-        mutator::FuzzMutator,
         oracles::typed_bug::TypedBugOracle,
         srcmap::parser::BASE_PATH,
         types::{fixed_address, EVMAddress, EVMFuzzMutator, EVMFuzzState},
@@ -20,6 +19,7 @@ use crate::{
     executor::FuzzExecutor,
     feedback::OracleFeedback,
     fuzzer::ItyFuzzer,
+    mutator::FuzzMutator,
     oracle::BugMetadata,
     scheduler::SortedDroppingScheduler,
 };
@@ -136,13 +136,11 @@ pub fn evm_fuzzer(
 
     let mut stages = tuple_list!(std_stage);
     let mut executor = FuzzExecutor::new(evm_executor_ref.clone(), tuple_list!(jmp_observer));
-    let mut oracles = config.oracle;
+    let mut oracles = config.oracles;
 
-    if config.typed_bug {
-        oracles.push(Rc::new(RefCell::new(TypedBugOracle::new(
-            artifacts.address_to_name.clone(),
-        ))));
-    }
+    oracles.push(Rc::new(RefCell::new(TypedBugOracle::new(
+        artifacts.address_to_name.clone(),
+    ))));
 
     state.add_metadata(BugMetadata::new());
 

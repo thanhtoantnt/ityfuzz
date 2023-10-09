@@ -5,7 +5,6 @@ use crate::{
         bytecode_analyzer,
         contract_utils::{extract_sig_from_contract, ABIConfig, ContractLoader},
         input::{ConciseEVMInput, EVMInput},
-        mutator::AccessPattern,
         types::{
             fixed_address, EVMAddress, EVMFuzzState, EVMInfantStateState, EVMStagedVMState,
             ProjectSourceMapTy, EVMU256,
@@ -15,6 +14,7 @@ use crate::{
     fuzzer::{DUMP_FILE_COUNT, REPLAY},
     generic_vm::vm_executor::GenericVM,
     input::ConciseSerde,
+    mutator::AccessPattern,
     state::HasCaller,
     state_input::StagedVMState,
 };

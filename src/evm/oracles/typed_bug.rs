@@ -13,7 +13,6 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-use crate::evm::oracles::TYPED_BUG_BUG_IDX;
 use itertools::Itertools;
 
 pub struct TypedBugOracle {
@@ -61,7 +60,7 @@ impl Oracle<EVMState, EVMAddress, Bytecode, Bytes, Vec<u8>, EVMInput, EVMFuzzSta
                         .unwrap_or(&format!("{:?}", addr))
                         .clone();
 
-                    let real_bug_idx = (hasher.finish() as u64) << 8 + TYPED_BUG_BUG_IDX;
+                    let real_bug_idx = (hasher.finish() as u64) << 8;
                     EVMBugResult::new(
                         "typed_bug".to_string(),
                         real_bug_idx,

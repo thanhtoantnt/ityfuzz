@@ -2,7 +2,7 @@ use crate::evm::input::{ConciseEVMInput, EVMInput, EVMInputT};
 use crate::evm::middlewares::middleware::{
     add_corpus, CallMiddlewareReturn, Middleware, MiddlewareType,
 };
-use crate::evm::mutator::AccessPattern;
+use crate::mutator::AccessPattern;
 
 use bytes::Bytes;
 use libafl::prelude::{HasCorpus, HasMetadata, HasRand, Scheduler};

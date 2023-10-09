@@ -15,6 +15,7 @@ pub mod generic_vm;
 pub mod indexed_corpus;
 pub mod input;
 pub mod mutation_utils;
+pub mod mutator;
 pub mod oracle;
 pub mod scheduler;
 pub mod state;
