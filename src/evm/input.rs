@@ -158,21 +158,12 @@ impl ConciseEVMInput {
         Out: Default,
     {
         Self {
-            #[cfg(feature = "flashloan_v2")]
-            input_type: input.get_input_type(),
             caller: input.get_caller(),
             contract: input.get_contract(),
             #[cfg(not(feature = "debug"))]
             data: input.get_data_abi(),
-            #[cfg(feature = "debug")]
-            direct_data: match &input.get_data_abi() {
-                Some(v) => hex::encode(v.get_bytes()),
-                None => "".to_string(),
-            },
             txn_value: input.get_txn_value(),
             env: input.get_vm_env().clone(),
-            #[cfg(feature = "flashloan_v2")]
-            liquidation_percent: input.get_liquidation_percent(),
             randomness: input.get_randomness(),
             repeat: input.get_repeat(),
             layer: input.get_state().get_post_execution_len(),

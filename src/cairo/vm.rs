@@ -1,13 +1,27 @@
+use felt::Felt252;
 use libafl::state::{HasCorpus, HasMetadata, HasRand, State};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
-    generic_vm::{vm_executor::GenericVM, vm_state::VMStateT},
+    generic_vm::{
+        vm_executor::{ExecutionResult, GenericVM},
+        vm_state::VMStateT,
+    },
     input::{ConciseSerde, VMInputT},
     state::{HasCaller, HasCurrentInputIdx},
+    state_input::StagedVMState,
 };
 
-use super::{input::ConciseCairoInput, types::CairoAddress};
+use cairo_rs::{
+    hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor,
+    types::{program::Program, relocatable::MaybeRelocatable},
+    vm::{runners::cairo_runner::CairoRunner, vm_core::VirtualMachine},
+};
+
+use super::{
+    input::{CairoInput, ConciseCairoInput},
+    types::{CairoAddress, Function},
+};
 
 use std::{fmt::Debug, marker::PhantomData};
 
@@ -18,6 +32,7 @@ pub struct CairoState {
 
     pub bug_hit: bool,
 
+    // pub func_name: Option<String>,
     pub typed_bug: Vec<String>,
 }
 
@@ -26,10 +41,12 @@ impl CairoState {
         Self {
             state: vec![],
             typed_bug: vec![],
+            // func_name,
             bug_hit: false,
         }
     }
 }
+
 impl Default for CairoState {
     fn default() -> Self {
         Self::new()
@@ -41,9 +58,9 @@ impl VMStateT for CairoState {
         todo!()
     }
 
-    fn has_post_execution(&self) -> bool {
-        todo!()
-    }
+    // fn has_post_execution(&self) -> bool {
+    //     self.post_execution.len() > 0
+    // }
 
     fn get_post_execution_needed_len(&self) -> usize {
         todo!()
@@ -78,6 +95,8 @@ where
     I: VMInputT<VS, CairoAddress, ConciseCairoInput>,
     VS: VMStateT,
 {
+    program: Program,
+    function: Function,
     phantom: PhantomData<(VS, I, S, CI)>,
 }
 
@@ -87,17 +106,39 @@ where
     I: VMInputT<VS, CairoAddress, ConciseCairoInput>,
     VS: VMStateT,
 {
-    pub fn new() -> Self {
+    pub fn new(program: Program, function: Function) -> Self {
         Self {
+            program,
+            function,
             phantom: Default::default(),
         }
     }
 }
 
-impl<VS, I, S, CI> GenericVM<VS, usize, usize, CairoAddress, Vec<u8>, I, S, CI>
+pub trait HasCairoInput {
+    fn get_felts(&self) -> Vec<Felt252>;
+}
+
+impl HasCairoInput for CairoInput {
+    fn get_felts(&self) -> Vec<Felt252> {
+        self.felts.clone()
+    }
+}
+
+impl HasFunctionName for CairoInput {
+    fn get_function(&self) -> String {
+        self.func_name.clone()
+    }
+}
+
+trait HasFunctionName {
+    fn get_function(&self) -> String;
+}
+
+impl<VS, I, S, CI> GenericVM<VS, usize, usize, CairoAddress, Vec<(u32, u32)>, I, S, CI>
     for CairoExecutor<I, S, VS, CI>
 where
-    I: VMInputT<VS, CairoAddress, ConciseCairoInput> + 'static,
+    I: VMInputT<VS, CairoAddress, ConciseCairoInput> + HasFunctionName + HasCairoInput + 'static,
     S: State
         + HasRand
         + HasCorpus<I>
@@ -125,14 +166,92 @@ where
         &mut self,
         _input: &I,
         _state: &mut S,
-    ) -> crate::generic_vm::vm_executor::ExecutionResult<CairoAddress, VS, Vec<u8>, CI>
+    ) -> ExecutionResult<CairoAddress, VS, Vec<(u32, u32)>, CI>
     where
         VS: VMStateT,
         CairoAddress: Serialize + DeserializeOwned + Debug,
-        Vec<u8>: Default,
-        CI: Serialize + DeserializeOwned + Debug + Clone + crate::input::ConciseSerde + 'static,
+        CI: Serialize + DeserializeOwned + Debug + Clone + ConciseSerde + 'static,
     {
-        todo!()
+        println!("input: {:?}", _input);
+        let mut cairo_runner = CairoRunner::new(&self.program, "small", false)
+            .expect("Failed to init the CairoRunner");
+
+        let mut vm = VirtualMachine::new(true);
+        let mut hint_processor = BuiltinHintProcessor::new_empty();
+
+        // Set the entrypoint which is the function the user want to fuzz
+        let entrypoint = match self
+            .program
+            .get_identifier(&format!("__main__.{}", &_input.get_function()))
+            .expect("Failed to initialize entrypoint")
+            .pc
+        {
+            Some(value) => value,
+            None => todo!("Check the return value"),
+        };
+
+        // Init builtins and segments
+        cairo_runner
+            .initialize_builtins(&mut vm)
+            .expect("Failed to initialize builtins");
+        cairo_runner.initialize_segments(&mut vm, None);
+
+        // Init the vector of arguments
+        let mut args = Vec::<MaybeRelocatable>::new();
+        // Set the entrypoint selector
+        let entrypoint_selector = MaybeRelocatable::from(Felt252::new(entrypoint));
+
+        let value_one = MaybeRelocatable::from((2, 0));
+        args.push(entrypoint_selector);
+        args.push(value_one);
+
+        let mut felts = _input.get_felts();
+        if felts.is_empty() {
+            felts.extend_from_slice(&vec![Felt252::from(b'\0'); self.function.num_args as usize]);
+        }
+        let buf: Vec<MaybeRelocatable> = felts
+            .as_slice()
+            .iter()
+            .map(|x| MaybeRelocatable::from(x))
+            .collect();
+
+        for val in buf {
+            args.push(val)
+        }
+
+        match cairo_runner.run_from_entrypoint_fuzz(
+            entrypoint,
+            args,
+            true,
+            &mut vm,
+            &mut hint_processor,
+        ) {
+            Ok(()) => (),
+            Err(_e) => {
+                panic!("Fail to run input program")
+            }
+        };
+
+        cairo_runner
+            .relocate(&mut vm, false)
+            .expect("Failed to relocate VM");
+        let trace = vm.get_trace();
+        let mut ret = Vec::<(u32, u32)>::new();
+        for i in trace {
+            ret.push((
+                i.pc.try_into()
+                    .expect("Failed to transform offset into u32"),
+                i.fp.try_into()
+                    .expect("Failed to transform offset into u32"),
+            ))
+        }
+
+        return ExecutionResult {
+            output: ret,
+            reverted: false,
+            new_state: StagedVMState::new_uninitialized(),
+            additional_info: None,
+        };
     }
 
     fn state_changed(&self) -> bool {

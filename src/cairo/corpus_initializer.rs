@@ -56,9 +56,10 @@ impl<'a> CairoCorpusInitializer<'a> {
         }
     }
 
-    pub fn initialize(&mut self) {
+    pub fn initialize(&mut self, func_name: String) {
         let input = CairoInput {
             repeat: 1,
+            func_name,
             sstate: StagedVMState::new_uninitialized(),
             sstate_idx: 0,
             felts: vec![],

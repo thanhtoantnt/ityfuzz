@@ -256,10 +256,6 @@ impl VMStateT for EVMState {
         s.finish()
     }
 
-    fn has_post_execution(&self) -> bool {
-        self.post_execution.len() > 0
-    }
-
     /// Get length needed for return data length of the call that leads to control leak
     fn get_post_execution_needed_len(&self) -> usize {
         self.post_execution

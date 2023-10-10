@@ -139,12 +139,12 @@ where
             OracleCtx::new(state, input.get_state(), &mut self.executor, input);
 
         let mut is_any_bug_hit = false;
-        let has_post_exec = oracle_ctx
-            .fuzz_state
-            .get_execution_result()
-            .new_state
-            .state
-            .has_post_execution();
+        // let has_post_exec = oracle_ctx
+        //     .fuzz_state
+        //     .get_execution_result()
+        //     .new_state
+        //     .state
+        //     .has_post_execution();
 
         // execute oracles and update stages if needed
         for idx in 0..self.oracle.len() {
@@ -164,18 +164,13 @@ where
                     .metadata_mut()
                     .get_mut::<BugMetadata>()
                     .unwrap();
-                if metadata.known_bugs.contains(&bug_idx) || has_post_exec {
+                if metadata.known_bugs.contains(&bug_idx) {
                     continue;
                 }
                 metadata.known_bugs.insert(bug_idx);
                 metadata.current_bugs.push(bug_idx);
                 is_any_bug_hit = true;
             }
-        }
-
-        // ensure the execution is finished
-        if has_post_exec {
-            return Ok(false);
         }
 
         Ok(is_any_bug_hit)

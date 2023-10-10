@@ -12,7 +12,7 @@ use super::{
 
 pub type CairoAddress = usize;
 pub type CairoFuzzState =
-    FuzzState<CairoInput, CairoState, CairoAddress, Vec<u8>, ConciseCairoInput>;
+    FuzzState<CairoInput, CairoState, CairoAddress, Vec<(u32, u32)>, ConciseCairoInput>;
 
 pub type CairoFuzzMutator<'a> = FuzzMutator<
     'a,
@@ -29,3 +29,13 @@ pub type CairoFuzzMutator<'a> = FuzzMutator<
 pub type CairoStagedVMState = StagedVMState<CairoAddress, CairoState, ConciseCairoInput>;
 
 pub type CairoInfantStateState = InfantStateState<CairoAddress, CairoState, ConciseCairoInput>;
+
+#[derive(Debug, Clone)]
+pub struct Function {
+    pub name: String,
+    pub entrypoint: String,
+    pub num_args: u64,
+    pub type_args: Vec<String>,
+    pub hints: bool,
+    pub decorators: Vec<String>,
+}

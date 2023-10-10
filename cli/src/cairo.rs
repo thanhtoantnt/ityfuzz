@@ -19,6 +19,10 @@ pub struct CairoArgs {
     #[arg(short, long)]
     input_file: String,
 
+    /// Input function name
+    #[arg(short, long)]
+    function: String,
+
     /// random seed
     #[arg(long, default_value = "1667840158231589000")]
     seed: u64,
@@ -35,7 +39,7 @@ pub fn cairo_main(args: CairoArgs) {
                     CairoAddress,
                     _,
                     _,
-                    Vec<u8>,
+                    Vec<(u32, u32)>,
                     CairoInput,
                     CairoFuzzState,
                     ConciseCairoInput,
@@ -49,13 +53,14 @@ pub fn cairo_main(args: CairoArgs) {
         usize,
         usize,
         usize,
-        Vec<u8>,
+        Vec<(u32, u32)>,
         CairoInput,
-        FuzzState<CairoInput, CairoState, usize, Vec<u8>, ConciseCairoInput>,
+        FuzzState<CairoInput, CairoState, usize, Vec<(u32, u32)>, ConciseCairoInput>,
         ConciseCairoInput,
     > = CairoFuzzConfig {
         oracles,
         input: args.input_file,
+        func_name: args.function,
         work_dir: "work_dir".to_string(),
     };
 
