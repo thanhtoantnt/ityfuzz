@@ -340,7 +340,7 @@ impl VMInputT<CairoState, CairoAddress, ConciseCairoInput> for CairoInput {
     }
 
     fn get_state_idx(&self) -> usize {
-        todo!()
+        self.sstate_idx
     }
 
     fn get_staged_state(

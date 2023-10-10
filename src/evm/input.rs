@@ -336,16 +336,6 @@ impl EVMInputT for EVMInput {
         self.randomness = v;
     }
 
-    #[cfg(feature = "flashloan_v2")]
-    fn get_liquidation_percent(&self) -> u8 {
-        self.liquidation_percent
-    }
-
-    #[cfg(feature = "flashloan_v2")]
-    fn set_liquidation_percent(&mut self, v: u8) {
-        self.liquidation_percent = v;
-    }
-
     fn get_repeat(&self) -> usize {
         self.repeat
     }

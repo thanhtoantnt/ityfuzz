@@ -157,9 +157,6 @@ where
                     if idx == old_idx {
                         return MutationResult::Skipped;
                     }
-                    if !state.has_caller(&input.get_caller()) {
-                        input.set_caller(state.get_rand_caller());
-                    }
 
                     input.set_staged_state(new_state, idx);
                     MutationResult::Mutated
