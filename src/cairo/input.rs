@@ -1,5 +1,8 @@
 use super::{types::CairoAddress, vm::CairoState};
-use crate::input::{ConciseSerde, VMInputT};
+use crate::{
+    input::{ConciseSerde, VMInputT},
+    state_input::StagedVMState,
+};
 use felt::Felt252;
 use libafl::prelude::Input;
 use serde::{Deserialize, Serialize};
@@ -11,9 +14,20 @@ pub struct CairoInput {
     pub repeat: usize,
 
     pub felts: Vec<Felt252>,
+
+    /// Staged VM state
+    #[serde(skip_deserializing)]
+    pub sstate: StagedVMState<CairoAddress, CairoState, ConciseCairoInput>,
+
+    /// Staged VM state index in the corpus
+    #[serde(skip_deserializing)]
+    pub sstate_idx: usize,
+
+    /// Maximum size to allow inputs to expand to
+    pub max_input_size: usize,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ConciseCairoInput {
     pub repeat: usize,
 
@@ -71,10 +85,11 @@ impl VMInputT<CairoState, CairoAddress, ConciseCairoInput> for CairoInput {
 
     fn set_staged_state(
         &mut self,
-        _state: crate::state_input::StagedVMState<CairoAddress, CairoState, ConciseCairoInput>,
-        _idx: usize,
+        state: crate::state_input::StagedVMState<CairoAddress, CairoState, ConciseCairoInput>,
+        idx: usize,
     ) {
-        todo!()
+        self.sstate = state;
+        self.sstate_idx = idx;
     }
 
     fn get_state_idx(&self) -> usize {
@@ -84,18 +99,10 @@ impl VMInputT<CairoState, CairoAddress, ConciseCairoInput> for CairoInput {
     fn get_staged_state(
         &self,
     ) -> &crate::state_input::StagedVMState<CairoAddress, CairoState, ConciseCairoInput> {
-        todo!()
+        &self.sstate
     }
 
     fn set_as_post_exec(&mut self, _out_size: usize) {
-        todo!()
-    }
-
-    fn is_step(&self) -> bool {
-        todo!()
-    }
-
-    fn set_step(&mut self, _gate: bool) {
         todo!()
     }
 

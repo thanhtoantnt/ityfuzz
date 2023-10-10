@@ -12,6 +12,7 @@ use libafl::{
 use crate::{
     cairo::{
         config::CairoFuzzConfig,
+        corpus_initializer::CairoCorpusInitializer,
         input::{CairoInput, ConciseCairoInput},
         oracle::TypedBugOracle,
         types::{CairoAddress, CairoFuzzMutator, CairoFuzzState},
@@ -41,7 +42,7 @@ pub fn cairo_fuzzer(
     let jmps = unsafe { &mut JMP_MAP };
     let jmp_observer = StdMapObserver::new("jmp", jmps);
 
-    let scheduler = QueueScheduler::new();
+    let mut scheduler = QueueScheduler::new();
     let infant_scheduler = SortedDroppingScheduler::new();
 
     let mut feedback = MaxMapFeedback::new(&jmp_observer);
@@ -50,8 +51,22 @@ pub fn cairo_fuzzer(
     let mut oracles = config.oracles;
     oracles.push(Rc::new(RefCell::new(TypedBugOracle::new())));
 
-    let cairo_executor: CairoExecutor<CairoInput, CairoFuzzState, CairoState, ConciseCairoInput> =
-        CairoExecutor::new();
+    let mut cairo_executor: CairoExecutor<
+        CairoInput,
+        CairoFuzzState,
+        CairoState,
+        ConciseCairoInput,
+    > = CairoExecutor::new();
+
+    let mut corpus_initializer = CairoCorpusInitializer::new(
+        &mut cairo_executor,
+        &mut scheduler,
+        &infant_scheduler,
+        state,
+        config.work_dir.clone(),
+    );
+
+    corpus_initializer.initialize();
 
     let cairo_executor_ref = Rc::new(RefCell::new(cairo_executor));
 

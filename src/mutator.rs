@@ -145,31 +145,6 @@ where
 
         // mutate the input once
         let mut mutator = || -> MutationResult {
-            // if the input is a step input (resume execution from a control leak)
-            // we should not mutate the VM state, but only mutate the bytes
-            if input.is_step() {
-                let res = match state.rand_mut().below(100) {
-                    _ => input.mutate(state),
-                };
-
-                return res;
-            }
-
-            // potentially set the input to be a step input  (resume execution from a control leak)
-            if input.get_staged_state().state.has_post_execution() && !input.is_step() {
-                if state.rand_mut().below(100) < 60 as u64 {
-                    input.set_step(true);
-                    // todo(@shou): move args into
-                    input.set_as_post_exec(
-                        input.get_state().get_post_execution_needed_len() as usize
-                    );
-                    for _ in 0..havoc_times - 1 {
-                        input.mutate(state);
-                    }
-                    return MutationResult::Mutated;
-                }
-            }
-
             match state.rand_mut().below(100) {
                 0..=5 => {
                     if already_crossed {

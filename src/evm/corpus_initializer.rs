@@ -243,24 +243,20 @@ impl<'a> EVMCorpusInitializer<'a> {
                     &mut artifacts,
                 );
             }
-            // add transfer txn
-            {
-                let input = EVMInput {
-                    caller: self.state.get_rand_caller(),
-                    contract: contract.deployed_address,
-                    data: None,
-                    sstate: StagedVMState::new_uninitialized(),
-                    sstate_idx: 0,
-                    txn_value: Some(EVMU256::from(1)),
-                    step: false,
-                    env: Default::default(),
-                    access_pattern: Rc::new(RefCell::new(AccessPattern::new())),
-                    direct_data: Default::default(),
-                    randomness: vec![0],
-                    repeat: 1,
-                };
-                add_input_to_corpus!(self.state, self.scheduler, input);
-            }
+            let input = EVMInput {
+                caller: self.state.get_rand_caller(),
+                contract: contract.deployed_address,
+                data: None,
+                sstate: StagedVMState::new_uninitialized(),
+                sstate_idx: 0,
+                txn_value: Some(EVMU256::from(1)),
+                env: Default::default(),
+                access_pattern: Rc::new(RefCell::new(AccessPattern::new())),
+                direct_data: Default::default(),
+                randomness: vec![0],
+                repeat: 1,
+            };
+            add_input_to_corpus!(self.state, self.scheduler, input);
         }
         artifacts.initial_state =
             StagedVMState::new_with_state(self.executor.host.evmstate.clone());
@@ -355,7 +351,6 @@ impl<'a> EVMCorpusInitializer<'a> {
             } else {
                 None
             },
-            step: false,
             env: Default::default(),
             access_pattern: Rc::new(RefCell::new(AccessPattern::new())),
             direct_data: Default::default(),

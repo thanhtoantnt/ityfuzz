@@ -540,7 +540,7 @@ where
         state: &mut S,
     ) -> ExecutionResult<EVMAddress, VS, Vec<u8>, CI> {
         // Get necessary info from input
-        let mut vm_state = unsafe {
+        let vm_state = unsafe {
             input
                 .get_state()
                 .as_any()
@@ -549,7 +549,6 @@ where
         };
 
         let r;
-        let mut is_step = input.is_step();
         let mut data = Bytes::from(input.to_bytes());
         // use direct data (mostly used for debugging) if there is no data
         if data.len() == 0 {
@@ -560,30 +559,7 @@ where
 
         loop {
             // Execute the transaction
-            let exec_res = if is_step {
-                let post_exec = vm_state.post_execution.pop().unwrap().clone();
-                let mut local_res = None;
-                for mut pe in post_exec.pes {
-                    // we need push the output of CALL instruction
-                    let _ = pe.stack.push(EVMU256::from(1));
-                    let res = self.execute_from_pc(
-                        &pe.get_call_ctx(),
-                        &vm_state,
-                        data,
-                        input,
-                        Some(pe),
-                        state,
-                        cleanup,
-                    );
-                    data = Bytes::from([vec![0; 4], res.output.to_vec()].concat());
-                    local_res = Some(res);
-                    if is_reverted_or_control_leak(&local_res.as_ref().unwrap().ret) {
-                        break;
-                    }
-                    cleanup = false;
-                }
-                local_res.unwrap()
-            } else {
+            let exec_res = {
                 let caller = input.get_caller();
                 let value = input.get_txn_value().unwrap_or(EVMU256::ZERO);
                 let contract_address = input.get_contract();
@@ -609,7 +585,6 @@ where
                 || exec_res.ret == InstructionResult::Stop)
                 && need_step
             {
-                is_step = true;
                 data = Bytes::from([vec![0; 4], exec_res.output.to_vec()].concat());
                 // we dont need to clean up bug info and state info
                 cleanup = false;

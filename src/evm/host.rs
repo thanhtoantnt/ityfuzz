@@ -1163,8 +1163,6 @@ where
                                     } else {
                                         None
                                     },
-                                    step: false,
-
                                     env: Default::default(),
                                     access_pattern: Rc::new(RefCell::new(AccessPattern::new())),
                                     direct_data: Default::default(),

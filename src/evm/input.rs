@@ -100,9 +100,6 @@ pub struct EVMInput {
     /// Transaction value in wei
     pub txn_value: Option<EVMU256>,
 
-    /// Whether to resume execution from the last control leak
-    pub step: bool,
-
     /// Environment (block, timestamp, etc.)
     pub env: Env,
 
@@ -134,9 +131,6 @@ pub struct ConciseEVMInput {
 
     /// Transaction value in wei
     pub txn_value: Option<EVMU256>,
-
-    /// Whether to resume execution from the last control leak
-    pub step: bool,
 
     /// Environment (block, timestamp, etc.)
     pub env: Env,
@@ -176,7 +170,6 @@ impl ConciseEVMInput {
                 None => "".to_string(),
             },
             txn_value: input.get_txn_value(),
-            step: input.is_step(),
             env: input.get_vm_env().clone(),
             #[cfg(feature = "flashloan_v2")]
             liquidation_percent: input.get_liquidation_percent(),
@@ -204,7 +197,6 @@ impl ConciseEVMInput {
                 sstate,
                 sstate_idx: 0,
                 txn_value: self.txn_value,
-                step: self.step,
                 env: self.env.clone(),
                 access_pattern: Rc::new(RefCell::new(AccessPattern::new())),
                 #[cfg(feature = "flashloan_v2")]
@@ -298,7 +290,6 @@ impl std::fmt::Debug for EVMInput {
             .field("state", &self.sstate)
             .field("state_idx", &self.sstate_idx)
             .field("txn_value", &self.txn_value)
-            .field("step", &self.step)
             .finish()
     }
 }
@@ -673,15 +664,6 @@ impl VMInputT<EVMState, EVMAddress, ConciseEVMInput> for EVMInput {
             concrete: BoxedABI::new(Box::new(AEmpty {})),
             size: out_size,
         })));
-    }
-
-    fn is_step(&self) -> bool {
-        self.step
-    }
-
-    fn set_step(&mut self, gate: bool) {
-        self.txn_value = None;
-        self.step = gate;
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

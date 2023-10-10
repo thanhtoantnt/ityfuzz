@@ -56,12 +56,6 @@ where
     /// Set to have post execution (incomplete execution)
     fn set_as_post_exec(&mut self, out_size: usize);
 
-    /// Is the execution a step to finish incomplete execution
-    fn is_step(&self) -> bool;
-
-    /// Set the execution to be a step to finish incomplete execution
-    fn set_step(&mut self, gate: bool);
-
     /// Used for downcasting
     fn as_any(&self) -> &dyn any::Any;
 

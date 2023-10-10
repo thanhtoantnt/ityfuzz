@@ -25,3 +25,7 @@ pub type CairoFuzzMutator<'a> = FuzzMutator<
     >,
     ConciseCairoInput,
 >;
+
+pub type CairoStagedVMState = StagedVMState<CairoAddress, CairoState, ConciseCairoInput>;
+
+pub type CairoInfantStateState = InfantStateState<CairoAddress, CairoState, ConciseCairoInput>;
